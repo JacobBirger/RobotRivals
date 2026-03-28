@@ -1,0 +1,12 @@
+Robot,Overall Attack,Knockback,Defense,Knockback resistance,Speed,Jump Height,Attack Speed,Light Attack Cooldown,Heavy Attack Cooldown,Shield Cooldown
+Definition,How much percent the light and heavy attack deal to the other robot relative to the other robots (heavy still does more than light),How much knockback the light and heavy attack deal to the other robot relative to the other robots (heavy still does more than light),How resistant this robot is to other robots attacks (robots with a high defense score take less damage than robots with a low defense score),How resistant a robot is to knockback from an attack (robots with a high score here will take less knoback than robots with a low score here),How fast the robot moves (the higher the number the faster),How hight the robot jumps (the higher the number the higher the jump),"How fast the attack comes out (the higher the number the quicker the attack comes out, attacks with a delay specified still have the delay though)",How fast the next light attack can come out after the previous light attack (the higher the number the shorter break in between attacks),How fast the next heavy attack can come out after the previous heavy attack (the higher the number the shorter break in between attacks),How long it takes since the robot used the shield for the robot to use the sheilf again (the higher the number the faster they can use the shield again)
+BOLT,5,5,5,5,5,5,5,5,5,5
+CRUSHER,9,10,9,10,2,3,3,3,2,4
+ZIPPY,3,3,3,3,10,6,10,9,8,6
+BLASTER,4,4,4,4,8,7,7,7,5,5
+EDGE,6,6,5,4,6,6,7,5,6,7
+PIERCE,8,8,3,3,8,5,6,4,3,8
+ROCKET,5,5,5,5,4,3,7,10,5,5
+BLADE,4,4,4,4,9,7,8,8,7,7
+UNSTABLE,9,9,3,4,7,4,6,6,6,4
+PRISTINE,6,5,6,5,6,5,8,9,2,7
