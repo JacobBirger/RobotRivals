@@ -56,14 +56,14 @@ document.addEventListener('keydown', e => {
   if (!was) {
     if (e.code==='KeyW')    p1JumpPend=true;
     if (e.code==='ArrowUp') p2JumpPend=true;
-    if (e.code==='KeyZ')    p2LightPend=true;
-    if (e.code==='KeyX')    p2HeavyPend=true;
+    if (e.code==='KeyZ')    p1LightPend=true;
+    if (e.code==='KeyX')    p1HeavyPend=true;
     if (e.code==='Space'        && gameState==='game') p1ShieldPend=true;
     if (e.code==='ControlLeft'  && gameState==='game') p2ShieldPend=true;
     if (e.code==='ShiftLeft'    && gameState==='game') p1DashPend=true;
     if (e.code==='ShiftRight'   && gameState==='game') p2DashPend=true;
-    if (e.code==='BracketLeft'  && gameState==='game') p1LightPend=true;
-    if (e.code==='BracketRight' && gameState==='game') p1HeavyPend=true;
+    if (e.code==='BracketLeft'  && gameState==='game') p2LightPend=true;
+    if (e.code==='BracketRight' && gameState==='game') p2HeavyPend=true;
   }
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   if (gameState==='modeSelect')       menuModeKey(e.code);
@@ -74,8 +74,8 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => {
   keys[e.code]=false;
-  if (e.code==='KeyX'          && gameState==='game') p2HeavyRelease=true;
-  if (e.code==='BracketRight'  && gameState==='game') p1HeavyRelease=true;
+  if (e.code==='KeyX'          && gameState==='game') p1HeavyRelease=true;
+  if (e.code==='BracketRight'  && gameState==='game') p2HeavyRelease=true;
 });
 document.addEventListener('mousedown', e => {
   if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='BUTTON') return;
@@ -98,12 +98,12 @@ canvas.addEventListener('wheel', e => {
 function getP1Input() {
   return { left:keys['KeyA'],right:keys['KeyD'],down:keys['KeyS'],up:keys['KeyW'],
            jump:p1JumpPend,light:p1LightPend,heavy:p1HeavyPend,shield:p1ShieldPend,
-           dash:p1DashPend,heavyHeld:mouseRight,heavyRelease:p1HeavyRelease };
+           dash:p1DashPend,heavyHeld:keys['KeyX'],heavyRelease:p1HeavyRelease };
 }
 function getP2Input() {
   return { left:keys['ArrowLeft'],right:keys['ArrowRight'],down:keys['ArrowDown'],up:keys['ArrowUp'],
            jump:p2JumpPend,light:p2LightPend,heavy:p2HeavyPend,shield:p2ShieldPend,
-           dash:p2DashPend,heavyHeld:keys['KeyX'],heavyRelease:p2HeavyRelease };
+           dash:p2DashPend,heavyHeld:keys['BracketRight'],heavyRelease:p2HeavyRelease };
 }
 function dummyInput() { return {left:false,right:false,down:false,up:false,jump:false,light:false,heavy:false,shield:false,dash:false,heavyHeld:false,heavyRelease:false}; }
 
@@ -524,7 +524,7 @@ const CHARS = [
     desc:['Lightning-fast attacks','Charged heavy hits hard','Lower base knockback'],
     color:'#ffdd00',accent:'#cc8800',eyeCol:'#ff00cc',hi:'#ffee88',
     w:40,h:50,speed:8.0,jumpF:-14.1,djF:-12.6,weight:0.8,def:1.16,shieldCool:108,
-    lDmg:3,hDmg:6,lKB:3,hKB:7,lSU:2,hSU:8,lAct:6,hAct:10,lEl:5,hEl:16,
+    lDmg:5,hDmg:9,lKB:5,hKB:10,lSU:2,hSU:8,lAct:6,hAct:10,lEl:5,hEl:16,
     lSz:38,lRch:50,hSz:55,hRch:64 },
   { id:3,name:'BLASTER',tag:'The Marksman',
     desc:['Fires ranged bullets','Heavy shot must charge up','Short-to-mid range only'],
@@ -1246,7 +1246,7 @@ class Player {
     const bx=f>0?this.right:this.x, by=this.cy-this.h*0.1;
     if(heavy&&dir!=='up'&&dir!=='down'){
       // 3-shot rapid side heavy: last shot ~70% of full heavy
-      const dmgs=[2,3.5,5.6],kbs=[2.5,3.5,4.2];
+      const dmgs=[2,3.5,5.6],kbs=[4.0,5.5,7.0];
       const b=new Bullet(bx,by,f*this.ch.bulletSpd,0,this,false);
       b.dmg=dmgs[Math.min(shotNum,2)]; b.kb=kbs[Math.min(shotNum,2)];
       b.maxDist=this.ch.lightBulletRange||220;
@@ -1277,7 +1277,7 @@ class Player {
     } else if(dir==='side'){
       // 2-arm side heavy: single projectile with dual visual (2.5× dmg/kb)
       const arm=new RocketArm(bx,by,f*spd,0,this,true);
-      arm.dual=true; arm.dmgMult=2.5;
+      arm.dual=true; arm.dmgMult=2.5; arm.kbMult=4.0;
       rocketArms.push(arm);
       this.armsLeft=Math.max(0,this.armsLeft-2);
     } else if(dir==='up'){
@@ -1329,7 +1329,7 @@ class Player {
       if(type==='light'){su=3;act=6;el=12;}
       else if(dir==='down'){su=10;act=6;el=18;}
       else if(dir==='up'){su=10;act=8;el=22;}
-      else{su=8;act=8;el=16;} // side heavy
+      else{su=8;act=8;el=136;} // side heavy
     }
     // PRISTINE direction-specific timing
     if(c.id===10){
@@ -1467,7 +1467,7 @@ class Player {
     if(this.ch.id===4&&!heavy&&this.atk.comboN){
       const cn=this.atk.comboN;
       dmg=Math.round(dmg*(cn===3?2.2:cn===2?1.3:1));
-      baseKB=baseKB*(cn===3?3.2:cn===2?1.5:1);
+      baseKB=baseKB*(cn===3?2.0:cn===2?1.1:1);
     }
     // PIERCE 3rd-hit spear swing scaling
     else if(this.ch.id===5&&!heavy&&this.atk.comboN===3){
@@ -1735,7 +1735,8 @@ class RocketArm {
   hitArm(target){
     if(target.shieldActive){addHitParticles(target.cx,target.cy,'#aaddff',false);return;}
     const mult=this.dmgMult||1;
-    const dmg=Math.round((this.heavy?Math.round(5*2.5):5)*mult), kb=(this.heavy?4*2.5:4)*mult;
+    const kbMult=this.kbMult||mult;
+    const dmg=Math.round((this.heavy?Math.round(5*2.5):5)*mult), kb=(this.heavy?4*2.5:4)*kbMult;
     target.damage+=Math.round(dmg*(target.ch.def??1)); target.hitFlash=14; target.charging=false; target.chargeTime=0;
     const km=1+target.damage/95, kbS=kb*km/target.ch.weight;
     const kDir=this.goingOut?(this.vx>0?1:-1):this.owner.facing;
@@ -1914,7 +1915,7 @@ class PristineRocket {
   constructor(x,y,vx,vy,owner){
     this.x=x; this.y=y; this.vx=vx; this.vy=vy;
     this.owner=owner; this.dead=false;
-    this.timer=180; this.speed=9;
+    this.timer=60; this.speed=9;
     this.dmg=owner.ch.hDmg||12; this.kb=owner.ch.hKB||11;
   }
   update(players){
@@ -1989,8 +1990,8 @@ class PristineRocket {
     ctx.fillStyle='#000000';
     ctx.beginPath(); ctx.moveTo(-14,0); ctx.lineTo(-8,-8); ctx.lineTo(-7,-3); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(-14,0); ctx.lineTo(-8,8); ctx.lineTo(-7,3); ctx.closePath(); ctx.fill();
-    // Timer warning flash (last 60 frames)
-    if(this.timer<60){
+    // Timer warning flash (last 20 frames)
+    if(this.timer<20){
       ctx.globalAlpha=(Math.sin(frame*0.4)*0.5+0.5)*0.5;
       ctx.fillStyle='#ff4444'; ctx.beginPath(); ctx.arc(0,0,12,0,Math.PI*2); ctx.fill();
     }
@@ -2911,7 +2912,6 @@ function menuCharKey(code){
     if(code==='ArrowDown')charScrollY=Math.min(maxSc,charScrollY+rowH);
     autoScroll(p2Sel);
     if(code==='Enter'||code==='NumpadEnter'){
-      if(p2Sel===p1Sel)p2Sel=(p2Sel+1)%CHARS.length;
       gameState='stageSelect';
     }
   }
