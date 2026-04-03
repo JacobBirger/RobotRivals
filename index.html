@@ -118,17 +118,10 @@ const PEER_CFG={config:{iceServers:[
   {urls:'turns:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
 ]}};
 let networkMode='none', isHost=false;
-let gameMode='1v1'; // '1v1' or '2v2'
 let rtcPeer=null, rtcConn=null, netConnected=false, myPeerCode='';
 let netRaw={left:false,right:false,down:false,up:false,heavyHeld:false};
 let netJumpPend=false,netLightPend=false,netHeavyPend=false,netShieldPend=false;
 let netDashPend=false,netHeavyRelease=false;
-// 4-machine 2v2 state
-let myPn=1;           // this machine's player number (1-4); host=1, guests get assigned 2/3/4
-let myCharSel=0;      // this machine's selected char index
-let charConfirmed=false;
-let netInputs={};     // pn → {left,right,down,jump,light,heavy,shield,dash,heavyHeld,heavyRelease}
-let multiConns=[];    // host only: [{pn, conn}]
 let confirmedChars={}; // pn → char index
 
 function defaultInput(){return{left:false,right:false,down:false,up:false,jump:false,light:false,heavy:false,shield:false,dash:false,heavyHeld:false,heavyRelease:false};}
@@ -154,7 +147,6 @@ function applyNetMsg(inp,d){
   if(d.sh)inp.shield=true;if(d.da)inp.dash=true;if(d.hr)inp.heavyRelease=true;
 }
 function clearPendNet(inp){inp.jump=false;inp.light=false;inp.heavy=false;inp.shield=false;inp.dash=false;inp.heavyRelease=false;}
-function broadcastAll(data,excludePn){for(const mc of multiConns){if(mc.pn!==excludePn&&mc.conn.open)mc.conn.send(data);}}
 
 function getNetInput() {
   return {left:netRaw.left,right:netRaw.right,down:netRaw.down,up:netRaw.up,
@@ -162,10 +154,6 @@ function getNetInput() {
           dash:netDashPend,heavyHeld:netRaw.heavyHeld,heavyRelease:netHeavyRelease};
 }
 function getInputForPn(pn) {
-  if(gameMode==='2v2'){
-    if(pn===myPn) return getP1Input();
-    return netInputs[pn]||defaultInput();
-  }
   if (networkMode==='none') return pn===1?getP1Input():getP2Input();
   if (networkMode==='test') return pn===1?getP1Input():dummyInput();
   const localPn=isHost?1:2;
@@ -175,80 +163,6 @@ function sendNet(data) { if (rtcConn&&rtcConn.open) rtcConn.send(data); }
 
 function handleNetData(data, fromPn) {
   if (!data||!data.t) return;
-  if(gameMode==='2v2'){
-    if(data.t==='i'){
-      // guest → host: single player input
-      if(!netInputs[data.pn]) netInputs[data.pn]=defaultInput();
-      applyNetMsg(netInputs[data.pn],data);
-    } else if(data.t==='all'){
-      // host → guest: all inputs broadcast
-      for(const [pnStr,d] of Object.entries(data.inputs)){
-        const pn=+pnStr;
-        if(pn===myPn) continue; // don't overwrite our own
-        if(!netInputs[pn]) netInputs[pn]=defaultInput();
-        applyNetMsg(netInputs[pn],d);
-      }
-    } else if(data.t==='assigned'){
-      myPn=data.pn;
-    } else if(data.t==='ready'){
-      hideNetUI();
-      myCharSel=0; charConfirmed=false; confirmedChars={};
-      gameState='charSelect';
-    } else if(data.t==='char'){
-      // pn chose char
-      confirmedChars[data.pn]=data.id;
-      if(data.pn===1) p1Sel=data.id;
-      else if(data.pn===2) p2Sel=data.id;
-      else if(data.pn===3) p3Sel=data.id;
-      else if(data.pn===4) p4Sel=data.id;
-      if(isHost){
-        // Relay to all other guests
-        broadcastAll(data, data.pn);
-        // Check if everyone confirmed
-        if(Object.keys(confirmedChars).length===4){gameState='stageSelect';}
-      }
-    } else if(data.t==='stage'){
-      stageSel=data.id;
-    } else if(data.t==='start'){
-      startGame();
-    } else if(data.t==='state'){
-      // Host-authoritative state: apply to all players on guests
-      if(!isHost&&players.length===4){
-        for(let i=0;i<4;i++){
-          const s=data.ps[i],p=players[i];
-          if(i===myPn-1){
-            // Own player: only sync combat results from host; keep local position/atk for responsiveness
-            p.damage=s.dmg; p.stocks=s.st; p.hitFlash=s.hf;
-            // Apply knockback if host says we're in more hitstun than local state
-            if(s.hst>p.hstun){p.hstun=s.hst;p.vx=s.vx;p.vy=s.vy;}
-            p.dead=s.dead;
-          } else {
-            // Remote players: apply full authoritative state
-            p.x=s.x;p.y=s.y;p.vx=s.vx;p.vy=s.vy;
-            p.damage=s.dmg;p.stocks=s.st;
-            p.facing=s.fa;p.hstun=s.hst;p.hitFlash=s.hf;
-            p.onGnd=s.onG;p.onPlat=s.onPl;
-            p.shieldActive=s.sA;p.shieldCooldown=s.sc;p.dashActive=s.dA;
-            p.dead=s.dead;p.jLeft=s.jl;p.respawnT=s.rt||0;
-            p.charging=s.chg||false;p.chargeTime=s.chgT||0;
-            p.flyActive=s.flyA||false;p.flyTimer=s.flyT||0;
-            p.flyCooldown=s.flyC||0;p.flyMaxCool=s.flyCM||180;
-            p.laserShieldActive=s.lsA||false;p.laserShieldTimer=s.lsT||0;
-            if(s.atk){
-              if(!p.atk||p.atk.type!==s.atk.tp||p.atk.dir!==s.atk.di){
-                p.atk={type:s.atk.tp,dir:s.atk.di,frame:s.atk.fr,su:s.atk.su,act:s.atk.act,el:s.atk.el,hit:false,comboN:s.atk.cn,bulletFired:true,chargeRatio:s.atk.cr||0};
-              } else {
-                p.atk.frame=s.atk.fr;
-              }
-            } else {
-              p.atk=null;
-            }
-          }
-        }
-      }
-    }
-    return;
-  }
   // 1v1 peer-to-peer protocol
   if(data.t==='hello'&&!isHost){
     if(gameState!=='charSelect'){hideNetUI();gameState='charSelect';}
@@ -339,81 +253,6 @@ function startJoining() {
     });
   };
 }
-function startHosting2v2() {
-  isHost=true; networkMode='host'; gameMode='2v2';
-  myPn=1; multiConns=[]; confirmedChars={};
-  showNetUI('Host 2v2','Waiting for server…', {showCode:true});
-  rtcPeer=new Peer(PEER_CFG);
-  rtcPeer.on('open',id=>{
-    myPeerCode=id;
-    document.getElementById('netTitle').textContent='Host 2v2 — Your Code';
-    document.getElementById('netMsg').textContent='Share this code with the 3 other players. Waiting (0/3 connected)…';
-    document.getElementById('netCode').value=id;
-    document.getElementById('netCopy').style.display='inline';
-  });
-  rtcPeer.on('connection',c=>{
-    if(multiConns.length>=3){c.close();return;}
-    const assignedPn=multiConns.length+2; // 2, 3, 4
-    const mc={pn:assignedPn,conn:c};
-    multiConns.push(mc);
-    c.on('open',()=>{
-      netInputs[assignedPn]=defaultInput();
-      c.send({t:'assigned',pn:assignedPn});
-      document.getElementById('netMsg').textContent=`Waiting (${multiConns.length}/3 connected)…`;
-      if(multiConns.length===3){
-        // All guests connected — send ready to everyone
-        broadcastAll({t:'ready'},null);
-        hideNetUI();
-        myCharSel=0; charConfirmed=false; confirmedChars={}; netInputs[1]=defaultInput();
-        gameState='charSelect';
-      }
-    });
-    c.on('data',d=>handleNetData(d, mc.pn));
-    c.on('close',()=>{
-      netConnected=false;
-      if(gameState==='game'){winner='Connection lost!';gameState='gameOver';gameOverTimer=300;}
-    });
-  });
-  rtcPeer.on('error',err=>{ alert('Network error: '+err.type+'\n\nMake sure you have an internet connection and try again.'); hideNetUI(); networkMode='none'; isHost=false; gameMode='1v1'; });
-}
-function startJoining2v2() {
-  isHost=false; networkMode='guest'; gameMode='2v2';
-  showNetUI('Join 2v2','Paste the host\'s code below and click Connect.', {showInput:true});
-  document.getElementById('netSubmit').onclick=()=>{
-    const code=document.getElementById('netInput').value.trim();
-    if(!code){document.getElementById('netMsg').textContent='Please paste the host code first.';return;}
-    document.getElementById('netMsg').textContent='Connecting…';
-    document.getElementById('netSubmit').disabled=true;
-    if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}
-    rtcPeer=new Peer(PEER_CFG);
-    let timeout=setTimeout(()=>{
-      if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}
-      document.getElementById('netMsg').textContent='Timed out. Check the code and try again.';
-      document.getElementById('netSubmit').disabled=false;
-      networkMode='none'; gameMode='1v1';
-    },25000);
-    rtcPeer.on('open',()=>{
-      const c=rtcPeer.connect(code,{reliable:true});
-      rtcConn=c;
-      c.on('open',()=>{
-        clearTimeout(timeout);
-        document.getElementById('netMsg').textContent='Connected! Waiting for all players to join…';
-        document.getElementById('netSubmit').disabled=true;
-      });
-      c.on('data',d=>handleNetData(d));
-      c.on('close',()=>{
-        if(gameState==='game'){winner='Connection lost!';gameState='gameOver';gameOverTimer=300;}
-      });
-    });
-    rtcPeer.on('error',err=>{
-      clearTimeout(timeout);
-      const msg=err.type==='peer-unavailable'?'Code not found — check the host code and try again.':'Connection failed ('+err.type+'). Check your internet and try again.';
-      document.getElementById('netMsg').textContent=msg;
-      document.getElementById('netSubmit').disabled=false;
-      networkMode='none'; gameMode='1v1';
-    });
-  };
-}
 function showNetUI(title,msg,opts={}) {
   const el=id=>document.getElementById(id);
   el('netUI').style.display='block';
@@ -435,11 +274,10 @@ document.getElementById('netCopy').addEventListener('click',()=>{
 });
 document.getElementById('netCancel').addEventListener('click',()=>{
   hideNetUI();
-  for(const mc of multiConns){try{mc.conn.close();}catch(e){}}
-  multiConns=[];confirmedChars={};netInputs={};myPn=1;myCharSel=0;charConfirmed=false;
+  confirmedChars={};
   if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}
   rtcConn=null; netConnected=false;
-  networkMode='none'; isHost=false; gameMode='1v1'; gameState='modeSelect';
+  networkMode='none'; isHost=false; gameState='modeSelect';
 });
 
 // ---- Team helper ----
@@ -1536,7 +1374,7 @@ class Player {
     ctx.restore();
 
     // "YOU" indicator in network play
-    if(networkMode!=='none'&&networkMode!=='test'&&(gameMode==='2v2'?this.localInputSlot!==null:(this.pn===(isHost?1:2)))){
+    if(networkMode!=='none'&&networkMode!=='test'&&(this.pn===(isHost?1:2))){
       const bob=Math.sin(frame*0.08)*3;
       ctx.save();
       ctx.font='bold 12px monospace'; ctx.textAlign='center';
@@ -1666,13 +1504,12 @@ class Player {
   }
 
   drawHUD(side,slot=0){
-    const is2v2=gameMode==='2v2';
-    const bh=is2v2?62:78, bw=205;
+    const bh=78, bw=205;
     const x=side==='left'?10:W-215, y=10+slot*(bh+4);
     rrFill(x,y,bw,bh,9,'rgba(0,0,0,0.78)');
     rrStroke(x,y,bw,bh,9,this.dead?'#333':this.ch.color,2.5);
     ctx.fillStyle=this.ch.color;ctx.font='bold 13px monospace';ctx.textAlign='left';
-    const isLocal=networkMode!=='none'&&networkMode!=='test'&&(gameMode==='2v2'?this.localInputSlot!==null:(this.pn===(isHost?1:2)));
+    const isLocal=networkMode!=='none'&&networkMode!=='test'&&(this.pn===(isHost?1:2));
     const label=this.isDummy?'DUMMY':isLocal?`YOU (P${this.pn}): ${this.ch.name}`:`P${this.pn}: ${this.ch.name}`;
     ctx.fillText(label,x+10,y+22);
     if(this.isDummy){
@@ -1681,15 +1518,10 @@ class Player {
     }
     const pct=Math.round(this.damage);
     ctx.fillStyle=pct<60?'#fff':pct<120?'#ffaa00':'#ff2200';
-    if(is2v2){
-      ctx.font='bold 22px monospace';ctx.fillText(`${pct}%`,x+10,y+50);
-      for(let i=0;i<this.stocks;i++){ctx.fillStyle=this.ch.color;ctx.beginPath();ctx.arc(x+bw-10-i*16,y+50,5,0,Math.PI*2);ctx.fill();}
-    } else {
-      ctx.font='bold 32px monospace';ctx.fillText(`${pct}%`,x+10,y+62);
-      for(let i=0;i<this.stocks;i++){ctx.fillStyle=this.ch.color;ctx.beginPath();ctx.arc(x+bw-14-i*22,y+62,8,0,Math.PI*2);ctx.fill();}
-    }
+    ctx.font='bold 32px monospace';ctx.fillText(`${pct}%`,x+10,y+62);
+    for(let i=0;i<this.stocks;i++){ctx.fillStyle=this.ch.color;ctx.beginPath();ctx.arc(x+bw-14-i*22,y+62,8,0,Math.PI*2);ctx.fill();}
     // Shield ready indicator in HUD
-    const shieldY=is2v2?y+18:y+22, shieldR=is2v2?5:7;
+    const shieldY=y+22, shieldR=7;
     if(this.shieldCooldown>0){
       const pct2=1-this.shieldCooldown/(this.ch.shieldCool??SHIELD_COOLDOWN);
       ctx.strokeStyle='#226';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x+bw-14,shieldY,shieldR,0,Math.PI*2);ctx.stroke();
@@ -2815,64 +2647,21 @@ function drawGear(x,y,r,c1,c2){
 
 // ---- Game State ----
 let gameState='modeSelect';
-let selectStep=0,p1Sel=0,p2Sel=1,p3Sel=2,p4Sel=3,stageSel=0,p1Confirmed=false;
+let selectStep=0,p1Sel=0,p2Sel=1,stageSel=0,p1Confirmed=false;
 let charScrollY=0;
 let curStage=null,players=[],winner='',gameOverTimer=0;
 
 // ---- Menu Input ----
 function menuModeKey(code){
-  if(code==='KeyL'){networkMode='none';gameMode='1v1';gameState='charSelect';selectStep=0;p1Confirmed=false;charScrollY=0;}
-  if(code==='KeyT'){networkMode='test';gameMode='1v1';gameState='charSelect';selectStep=0;p1Confirmed=false;charScrollY=0;}
-  if(code==='KeyH'){gameMode='1v1';startHosting();}
-  if(code==='KeyG'){gameMode='1v1';startJoining();}
-  if(code==='KeyB'){startHosting2v2();}
-  if(code==='KeyN'){startJoining2v2();}
+  if(code==='KeyL'){networkMode='none';gameState='charSelect';selectStep=0;p1Confirmed=false;charScrollY=0;}
+  if(code==='KeyT'){networkMode='test';gameState='charSelect';selectStep=0;p1Confirmed=false;charScrollY=0;}
+  if(code==='KeyH'){startHosting();}
+  if(code==='KeyG'){startJoining();}
 }
 function menuCharKey(code){
   const rowH=230+12,maxSc=Math.max(0,(Math.ceil(CHARS.length/3)-2)*rowH);
   // Helper to scroll a given selection index into view
   const autoScroll=sel=>{const r=Math.floor(sel/3)*rowH;if(r<charScrollY)charScrollY=r;if(r+230>charScrollY+472)charScrollY=r+230-472;};
-  if(gameMode==='2v2'){
-    if(networkMode==='none'){
-      // Local 2v2: use selectStep 0–3 for P1–P4, WASD for even steps, arrows for odd
-      const getSel=()=>[p1Sel,p2Sel,p3Sel,p4Sel][selectStep]||0;
-      const setSel=v=>{if(selectStep===0)p1Sel=v;else if(selectStep===1)p2Sel=v;else if(selectStep===2)p3Sel=v;else p4Sel=v;};
-      const useArrows=selectStep%2===1;
-      if(!useArrows){if(code==='KeyA')setSel((getSel()+CHARS.length-1)%CHARS.length);if(code==='KeyD')setSel((getSel()+1)%CHARS.length);}
-      else{if(code==='ArrowLeft')setSel((getSel()+CHARS.length-1)%CHARS.length);if(code==='ArrowRight')setSel((getSel()+1)%CHARS.length);}
-      if(code==='KeyW'||code==='ArrowUp')charScrollY=Math.max(0,charScrollY-rowH);
-      if(code==='KeyS'||code==='ArrowDown')charScrollY=Math.min(maxSc,charScrollY+rowH);
-      autoScroll(getSel());
-      if(code==='Space'||code==='Enter'||code==='NumpadEnter'){
-        if(selectStep<3){selectStep++;p1Confirmed=(selectStep>=1);}
-        else gameState='stageSelect';
-      }
-    } else if(!charConfirmed){
-      // Network 2v2: each machine picks one character
-      if(code==='KeyA'||code==='ArrowLeft') myCharSel=(myCharSel+CHARS.length-1)%CHARS.length;
-      if(code==='KeyD'||code==='ArrowRight') myCharSel=(myCharSel+1)%CHARS.length;
-      if(code==='KeyW'||code==='ArrowUp') charScrollY=Math.max(0,charScrollY-rowH);
-      if(code==='KeyS'||code==='ArrowDown') charScrollY=Math.min(maxSc,charScrollY+rowH);
-      autoScroll(myCharSel);
-      if(code==='Space'||code==='Enter'||code==='NumpadEnter'){
-        charConfirmed=true;
-        // Store locally
-        if(myPn===1)p1Sel=myCharSel;else if(myPn===2)p2Sel=myCharSel;
-        else if(myPn===3)p3Sel=myCharSel;else p4Sel=myCharSel;
-        confirmedChars[myPn]=myCharSel;
-        const msg={t:'char',pn:myPn,id:myCharSel};
-        if(isHost){
-          // Host relays to all guests and checks if everyone confirmed
-          broadcastAll(msg,null);
-          if(Object.keys(confirmedChars).length===4) gameState='stageSelect';
-        } else {
-          sendNet(msg);
-        }
-      }
-    }
-    // If charConfirmed, waiting for others — no key action
-    return;
-  }
   // 1v1 network: host picks P1, guest picks P2 — each independently
   if(networkMode==='host'||networkMode==='guest'){
     if(!p1Confirmed){
@@ -2920,10 +2709,7 @@ function menuStageKey(code){
   if(code==='KeyA'||code==='ArrowLeft')stageSel=(stageSel+STAGES.length-1)%STAGES.length;
   if(code==='KeyD'||code==='ArrowRight')stageSel=(stageSel+1)%STAGES.length;
   if(code==='Space'||code==='Enter'||code==='NumpadEnter'){
-    if(gameMode==='2v2'&&isHost){
-      broadcastAll({t:'stage',id:stageSel},null);
-      broadcastAll({t:'start'},null);
-    } else if(networkMode==='host'){
+    if(networkMode==='host'){
       sendNet({t:'stage',id:stageSel});sendNet({t:'start'});
     }
     startGame();
@@ -2935,26 +2721,15 @@ function drawModeSelect(){
   const gr=ctx.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#080818');gr.addColorStop(1,'#000000');ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
   ctx.textAlign='center';ctx.font='bold 56px monospace';ctx.fillStyle='#ffffff';ctx.fillText('ROBOT BRAWL',W/2,88);
   ctx.font='16px monospace';ctx.fillStyle='#444';ctx.fillText('A Platform Fighter',W/2,115);
-  // Left column: 1v1 options  Right column: 2v2 + test
-  const col1=[
+  const options=[
     {key:'L',label:'Local 1v1',sub:'Both players on this computer',col:'#44aaff'},
     {key:'H',label:'Host 1v1',sub:'Host a game — share code with P2',col:'#ff6644'},
     {key:'G',label:'Join 1v1',sub:'Enter a host code to connect',col:'#ff6644'},
-  ];
-  const col2=[
-    {key:'B',label:'Host 2v2',sub:'Host 2v2 — 4 machines, each picks 1 char',col:'#ff4455'},
-    {key:'N',label:'Join 2v2',sub:'Join 2v2 — enter host code, pick your char',col:'#4488ff'},
     {key:'T',label:'Test Mode',sub:'Practice against a stationary dummy',col:'#88cc33'},
   ];
-  const bw=210,bh=72,gap=16,sx=W/2-bw-gap/2;
-  col1.forEach((o,i)=>{
-    const bx=sx,by=148+i*80;
-    rrFill(bx,by,bw,bh,8,'rgba(20,20,40,0.9)');rrStroke(bx,by,bw,bh,8,o.col,2);
-    ctx.fillStyle=o.col;ctx.font='bold 17px monospace';ctx.textAlign='left';ctx.fillText(`[${o.key}] ${o.label}`,bx+12,by+25);
-    ctx.fillStyle='#555';ctx.font='10px monospace';ctx.fillText(o.sub,bx+12,by+50);
-  });
-  col2.forEach((o,i)=>{
-    const bx=sx+bw+gap,by=148+i*80;
+  const bw=260,bh=72,sx=W/2-bw/2;
+  options.forEach((o,i)=>{
+    const bx=sx,by=148+i*84;
     rrFill(bx,by,bw,bh,8,'rgba(20,20,40,0.9)');rrStroke(bx,by,bw,bh,8,o.col,2);
     ctx.fillStyle=o.col;ctx.font='bold 17px monospace';ctx.textAlign='left';ctx.fillText(`[${o.key}] ${o.label}`,bx+12,by+25);
     ctx.fillStyle='#555';ctx.font='10px monospace';ctx.fillText(o.sub,bx+12,by+50);
@@ -2965,30 +2740,12 @@ function drawModeSelect(){
 
 function drawCharSelect(){
   const gr=ctx.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#080818');gr.addColorStop(1,'#000000');ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
-  const is2v2=gameMode==='2v2';
   const isGuest=networkMode==='guest';
   // Header
   ctx.textAlign='center';ctx.font='bold 32px monospace';ctx.fillStyle='#fff';
-  ctx.fillText(is2v2?'2v2 CHARACTER SELECT':'CHARACTER SELECT',W/2,40);
+  ctx.fillText('CHARACTER SELECT',W/2,40);
   ctx.font='13px monospace';ctx.fillStyle='#777';
   if(networkMode==='test') ctx.fillText('A/D to browse  |  SPACE to confirm',W/2,60);
-  else if(is2v2&&networkMode!=='none'){
-    // 4-machine 2v2
-    const pnColors=['','#ff4455','#ff7766','#4488ff','#66aaff'];
-    const myCol=pnColors[myPn]||'#fff';
-    ctx.fillStyle=myCol;
-    if(!charConfirmed) ctx.fillText(`P${myPn} — A/D to browse  |  SPACE to confirm`,W/2,60);
-    else{
-      const cnt=Object.keys(confirmedChars).length;
-      ctx.fillStyle='#555';ctx.fillText(`Confirmed! Waiting for others (${cnt}/4)…`,W/2,60);
-    }
-  }
-  else if(is2v2){
-    // Local 2v2
-    const stepLabels=['P1 (WASD)','P2 (Arrows)','P3 (WASD)','P4 (Arrows)'];
-    ctx.fillStyle='#aaa';
-    if(selectStep<4) ctx.fillText(`${stepLabels[selectStep]} — browse  |  SPACE to confirm`,W/2,60);
-  }
   else if(networkMode==='host'||networkMode==='guest'){
     const myPnum=isHost?1:2;
     ctx.fillStyle=myPnum===1?'#3399ff':'#ff6644';
@@ -2999,26 +2756,8 @@ function drawCharSelect(){
   else if(networkMode==='none') ctx.fillText('P2: Arrow keys to browse  |  ENTER to confirm',W/2,60);
   else ctx.fillText('Waiting for other player...',W/2,60);
 
-  // 2v2: show all 4 selected chars at top
-  if(is2v2){
-    const pnSlots=[
-      {sel:p1Sel,lbl:'P1',col:'#ff4455'},{sel:p2Sel,lbl:'P2',col:'#ff7766'},
-      {sel:p3Sel,lbl:'P3',col:'#4488ff'},{sel:p4Sel,lbl:'P4',col:'#66aaff'}
-    ];
-    const totalPW=pnSlots.length*50+3*8;
-    const startX=W/2-totalPW/2;
-    for(let s=0;s<4;s++){
-      const px=startX+s*58+25,py=82;
-      const conf=confirmedChars[s+1]!=null||(networkMode==='none'&&(s<selectStep||(s===selectStep&&s===3&&gameState==='stageSelect')));
-      ctx.strokeStyle=conf?pnSlots[s].col:'#333';ctx.lineWidth=conf?2:1;
-      ctx.strokeRect(px-22,py-2,44,38);
-      ctx.save();ctx.translate(px,py+18);ctx.scale(0.9,0.9);drawCharacter(ctx,CHARS[pnSlots[s].sel],CHARS[pnSlots[s].sel].w,CHARS[pnSlots[s].sel].h,null,true,0);ctx.restore();
-      ctx.fillStyle=conf?pnSlots[s].col:'#555';ctx.font='9px monospace';ctx.textAlign='center';ctx.fillText(pnSlots[s].lbl,px,py+44);
-    }
-  }
-
   // 1v1 network: show both player picks at top
-  if((networkMode==='host'||networkMode==='guest')&&!is2v2){
+  if(networkMode==='host'||networkMode==='guest'){
     const slots=[{sel:p1Sel,lbl:'P1',col:'#3399ff'},{sel:p2Sel,lbl:'P2',col:'#ff6644'}];
     const startX=W/2-(2*58)/2+25-29;
     for(let s=0;s<2;s++){
@@ -3033,7 +2772,7 @@ function drawCharSelect(){
   const cw=285,cardH=230,gapX=14,gapY=12,cols=3;
   const totalW=cols*cw+(cols-1)*gapX;
   const sx2=(W-totalW)/2;
-  const clipTop=is2v2?128:(networkMode==='host'||networkMode==='guest')?110:70,clipBot=H-10,visibleH=clipBot-clipTop;
+  const clipTop=(networkMode==='host'||networkMode==='guest')?110:70,clipBot=H-10,visibleH=clipBot-clipTop;
   const maxSc=Math.max(0,(Math.ceil(CHARS.length/3)-2)*(cardH+gapY));
   // Clipped scroll region
   ctx.save();
@@ -3045,27 +2784,10 @@ function drawCharSelect(){
 
     // Determine highlights for this card
     const isP1Sel=p1Sel===i,isP2Sel=p2Sel===i;
-    const isSame=!is2v2&&networkMode==='none'&&p1Confirmed&&p1Sel===i&&selectStep===1;
-    // 2v2 network: highlight this machine's cursor and all confirmed picks
-    const isMyNet2v2Cursor=is2v2&&networkMode!=='none'&&!charConfirmed&&myCharSel===i;
-    const pnColors=['','#ff4455','#ff7766','#4488ff','#66aaff'];
+    const isSame=networkMode==='none'&&p1Confirmed&&p1Sel===i&&selectStep===1;
     rrFill(cx2,cy2,cw,cardH,10,isSame?'rgba(10,10,10,0.8)':'rgba(16,16,36,0.92)');
     let bc='#252535',bw3=1.5;
-    if(is2v2&&networkMode!=='none'){
-      // Network 2v2: show cursor for this machine + confirmed picks
-      if(isMyNet2v2Cursor){bc=pnColors[myPn]||'#fff';bw3=3;}
-      if(p1Sel===i&&confirmedChars[1]!=null){bc='#ff4455';bw3=3;}
-      if(p2Sel===i&&confirmedChars[2]!=null){bc='#ff7766';bw3=3;}
-      if(p3Sel===i&&confirmedChars[3]!=null){bc='#4488ff';bw3=3;}
-      if(p4Sel===i&&confirmedChars[4]!=null){bc='#66aaff';bw3=3;}
-    } else if(is2v2){
-      // Local 2v2
-      const redSels=[p1Sel,p2Sel],blueSels=[p3Sel,p4Sel];
-      const isRedSel=redSels.includes(i),isBlueSel=blueSels.includes(i);
-      if(isRedSel&&isBlueSel){bc='#aa44aa';bw3=3;}
-      else if(isRedSel){bc='#ff4455';bw3=3;}
-      else if(isBlueSel){bc='#4488ff';bw3=3;}
-    } else if(networkMode==='host'||networkMode==='guest'){
+    if(networkMode==='host'||networkMode==='guest'){
       const myCursor=isHost?p1Sel:p2Sel;
       const myCol2=isHost?'#3399ff':'#ff6644';
       if(!p1Confirmed&&myCursor===i){bc=myCol2;bw3=3;}
@@ -3084,13 +2806,7 @@ function drawCharSelect(){
     ctx.textAlign='left';ctx.fillStyle='#777';ctx.font='10px monospace';
     for(let j=0;j<Math.min(c.desc.length,2);j++) ctx.fillText('- '+c.desc[j],cx2+10,cy2+cardH-34+j*14);
     ctx.textAlign='center';ctx.font='bold 11px monospace';
-    if(is2v2){
-      let yOff=16;
-      if(p1Sel===i){ctx.fillStyle='#ff4455';ctx.fillText('P1',cx2+cw/2,cy2+yOff);yOff+=14;}
-      if(p2Sel===i){ctx.fillStyle='#ff7766';ctx.fillText('P2',cx2+cw/2,cy2+yOff);yOff+=14;}
-      if(p3Sel===i){ctx.fillStyle='#4488ff';ctx.fillText('P3',cx2+cw/2,cy2+yOff);yOff+=14;}
-      if(p4Sel===i){ctx.fillStyle='#66aaff';ctx.fillText('P4',cx2+cw/2,cy2+yOff);}
-    } else if(networkMode==='host'||networkMode==='guest'){
+    if(networkMode==='host'||networkMode==='guest'){
       let yOff=16;
       const youSel=isHost?p1Sel:p2Sel,otherSel=isHost?p2Sel:p1Sel;
       const youLbl=isHost?'P1 (YOU)':'P2 (YOU)',otherLbl=isHost?'P2':'P1';
@@ -3133,11 +2849,7 @@ function drawStageSelect(){
     ctx.fillStyle='#555';ctx.font='9px monospace';ctx.fillText(st.desc,cx2+cw/2,cy2+ch-22);
     if(sel){ctx.fillStyle=st.aCol;ctx.font='bold 9px monospace';ctx.fillText('[ SELECTED ]',cx2+cw/2,cy2+ch-9);}
   }
-  if(gameMode==='2v2'){
-    ctx.font='bold 12px monospace';
-    ctx.textAlign='left';ctx.fillStyle='#ff4455';ctx.fillText(`RED: ${CHARS[p1Sel].name} + ${CHARS[p2Sel].name}`,18,H-14);
-    ctx.textAlign='right';ctx.fillStyle='#4488ff';ctx.fillText(`BLUE: ${CHARS[p3Sel].name} + ${CHARS[p4Sel].name}`,W-18,H-14);
-  } else {
+  {
     const p1c=CHARS[p1Sel],p2c=networkMode==='test'?DUMMY_CHAR:CHARS[p2Sel];
     ctx.font='bold 13px monospace';ctx.textAlign='left';ctx.fillStyle=p1c.color;ctx.fillText(`P1: ${p1c.name}`,18,H-14);
     ctx.textAlign='right';ctx.fillStyle=p2c.color;ctx.fillText(networkMode==='test'?'P2: DUMMY':`P2: ${p2c.name}`,W-18,H-14);
@@ -3148,12 +2860,7 @@ function drawGameOver(){
   drawStageBG(curStage);drawStageGeom(curStage);for(const p of players)p.draw();drawParticles();
   ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(0,0,W,H);
   ctx.textAlign='center';ctx.font='bold 62px monospace';ctx.fillStyle='#fff';ctx.fillText('GAME OVER',W/2,H/2-55);
-  let wc='#fff';
-  if(gameMode==='2v2'){
-    wc=winner.includes('Red')?'#ff4455':winner.includes('Blue')?'#4488ff':'#fff';
-  } else {
-    wc=winner.includes('P1')?CHARS[p1Sel].color:winner.includes('P2')?(networkMode==='test'?'#888':CHARS[p2Sel].color):'#fff';
-  }
+  const wc=winner.includes('P1')?CHARS[p1Sel].color:winner.includes('P2')?(networkMode==='test'?'#888':CHARS[p2Sel].color):'#fff';
   ctx.font='bold 34px monospace';ctx.fillStyle=wc;ctx.fillText(winner,W/2,H/2+18);
   ctx.fillStyle='#666';ctx.font='17px monospace';ctx.fillText('Press ENTER or SPACE to play again',W/2,H/2+72);
 }
@@ -3162,99 +2869,27 @@ function drawGameOver(){
 function startGame(){
   curStage=STAGES[stageSel];
   const clr=()=>{winner='';gameState='game';frame=0;particles.length=0;bullets.length=0;miniSwords.length=0;rocketArms.length=0;rocketMines.length=0;smokeClouds.length=0;unstableHeads.length=0;knives.length=0;throwSwords.length=0;shakeX=0;shakeY=0;};
-  if(gameMode==='2v2'){
-    const c1=CHARS[p1Sel],c2=CHARS[p2Sel],c3=CHARS[p3Sel],c4=CHARS[p4Sel];
-    const [sx0,sx1]=curStage.spawnX;
-    players=[
-      new Player(c1,sx0-30,1,false), new Player(c2,sx0+30,2,false),
-      new Player(c3,sx1-30,3,false), new Player(c4,sx1+30,4,false)
-    ];
-    players[0].team=1;players[1].team=1;
-    players[2].team=2;players[3].team=2;
-    players[0].facing=1;players[1].facing=1;
-    players[2].facing=-1;players[3].facing=-1;
-    if(networkMode==='none'){
-      // Local 2v2: P1&P3 use WASD, P2&P4 use arrows
-      players[0].localInputSlot=1;players[1].localInputSlot=2;
-      players[2].localInputSlot=1;players[3].localInputSlot=2;
-    } else {
-      // 4-machine 2v2: each machine only controls its own player
-      for(let pi=0;pi<4;pi++) players[pi].localInputSlot=null;
-      // myPn is 1-indexed; players array is 0-indexed
-      if(myPn>=1&&myPn<=4) players[myPn-1].localInputSlot=1;
-    }
+  const p1c=CHARS[p1Sel],p2c=networkMode==='test'?DUMMY_CHAR:CHARS[p2Sel];
+  players=[new Player(p1c,curStage.spawnX[0],1,false),new Player(p2c,curStage.spawnX[1],2,networkMode==='test')];
+  players[1].facing=-1;
+  if(networkMode==='none'||networkMode==='test'){
+    players[0].localInputSlot=1; players[1].localInputSlot=2;
+  } else if(isHost){
+    players[0].localInputSlot=1;
+    players[1].localInputSlot=null;
   } else {
-    const p1c=CHARS[p1Sel],p2c=networkMode==='test'?DUMMY_CHAR:CHARS[p2Sel];
-    players=[new Player(p1c,curStage.spawnX[0],1,false),new Player(p2c,curStage.spawnX[1],2,networkMode==='test')];
-    players[1].facing=-1;
-    if(networkMode==='none'||networkMode==='test'){
-      players[0].localInputSlot=1; players[1].localInputSlot=2;
-    } else if(isHost){
-      players[0].localInputSlot=1;  // host controls player 1 locally
-      players[1].localInputSlot=null; // player 2 is remote
-    } else {
-      players[0].localInputSlot=null; // player 1 is remote (host's character)
-      players[1].localInputSlot=1;    // guest controls player 2 with WASD
-    }
+    players[0].localInputSlot=null;
+    players[1].localInputSlot=1;
   }
   clr();
 }
 
 function updateGame(){
-  // Send local inputs over network
-  if(networkMode==='host'||networkMode==='guest'){
-    if(gameMode==='2v2'){
-      const inp=getP1Input();
-      const pkt={t:'i',pn:myPn,l:inp.left,r:inp.right,d:inp.down,u:inp.up,j:p1JumpPend,li:p1LightPend,h:p1HeavyPend,sh:p1ShieldPend,da:p1DashPend,hh:mouseRight,hr:p1HeavyRelease};
-      if(isHost){
-        // Store own input and broadcast all inputs to guests
-        if(!netInputs[myPn]) netInputs[myPn]=defaultInput();
-        applyNetMsg(netInputs[myPn],pkt);
-        broadcastAll({t:'all',inputs:netInputs},null);
-      } else {
-        // Guest sends its input to host
-        sendNet(pkt);
-      }
-    }
-  }
   // Collect all inputs then clear pend flags
   const inputs=players.map((_,i)=>getInputForPn(i+1));
   netJumpPend=false;netLightPend=false;netHeavyPend=false;netShieldPend=false;netDashPend=false;netHeavyRelease=false;
-  // Clear 2v2 net input pend flags after consuming
-  if(gameMode==='2v2'){for(const pn of Object.keys(netInputs)){if(+pn!==myPn)clearPendNet(netInputs[pn]);}}
   // Update players
-  if(gameMode==='2v2'){
-    const enemies=p=>players.filter(e=>e!==p&&e.team!==p.team);
-    if(!isHost&&networkMode!=='none'){
-      // Guest: only simulate own player; remote players are driven by host state sync
-      const mi=myPn-1;
-      if(mi>=0&&mi<players.length) players[mi].update(inputs[mi],curStage,enemies(players[mi]));
-    } else {
-      // Host (or offline): full authoritative simulation
-      for(let i=0;i<players.length;i++) players[i].update(inputs[i],curStage,enemies(players[i]));
-    }
-    // Only run checkKill for local player on guests; host is authoritative for remote kill/respawn
-    if(!isHost&&networkMode!=='none'){
-      players[myPn-1].checkKill();
-    } else {
-      for(let i=0;i<players.length;i++) players[i].checkKill();
-    }
-    // Host broadcasts authoritative state every frame
-    if(isHost&&networkMode!=='none'){
-      broadcastAll({t:'state',ps:players.map(p=>({
-        x:p.x,y:p.y,vx:p.vx,vy:p.vy,
-        dmg:p.damage,st:p.stocks,
-        fa:p.facing,hst:p.hstun,hf:p.hitFlash,
-        onG:p.onGnd,onPl:p.onPlat,
-        sA:p.shieldActive,sc:p.shieldCooldown,dA:p.dashActive,
-        dead:p.dead,jl:p.jLeft,rt:p.respawnT,
-        chg:p.charging,chgT:p.chargeTime,
-        flyA:p.flyActive,flyT:p.flyTimer,flyC:p.flyCooldown,flyCM:p.flyMaxCool,
-        lsA:p.laserShieldActive,lsT:p.laserShieldTimer,
-        atk:p.atk?{tp:p.atk.type,di:p.atk.dir,fr:p.atk.frame,su:p.atk.su,act:p.atk.act,el:p.atk.el,cn:p.atk.comboN,cr:p.atk.chargeRatio}:null
-      }))},null);
-    }
-  } else {
+  {
     if(networkMode==='none'||networkMode==='test'){
       // Offline / test: full local simulation
       players[0].update(inputs[0],curStage,[players[1]]);
@@ -3289,7 +2924,7 @@ function updateGame(){
   // Projectiles — in 1v1 network, each machine only updates its own player's projectiles.
   // Opponent's bullets/rockets arrive via state sync and are rendered but not updated here.
   {
-    const lp=gameMode==='1v1'&&(networkMode==='host'||networkMode==='guest')?(isHost?players[0]:players[1]):null;
+    const lp=(networkMode==='host'||networkMode==='guest')?(isHost?players[0]:players[1]):null;
     for(let i=bullets.length-1;i>=0;i--){if(!lp||bullets[i].owner===lp){bullets[i].update(players);if(bullets[i].dead)bullets.splice(i,1);}}
     for(let i=miniSwords.length-1;i>=0;i--){miniSwords[i].update(players,curStage);if(miniSwords[i].dead)miniSwords.splice(i,1);}
     for(let i=rocketArms.length-1;i>=0;i--){rocketArms[i].update(players);if(rocketArms[i].dead)rocketArms.splice(i,1);}
@@ -3303,29 +2938,18 @@ function updateGame(){
   updateParticles();
   if(networkMode==='test'&&keys['KeyR']){players[1].damage=0;players[1].dead=false;players[1].x=curStage.spawnX[1]-players[1].w/2;players[1].y=150;players[1].vx=0;players[1].vy=0;}
   // Win condition
-  if(gameMode==='2v2'){
-    const redDead=players[0].stocks<=0&&players[1].stocks<=0;
-    const blueDead=players[2].stocks<=0&&players[3].stocks<=0;
-    if(redDead||blueDead){
-      if(redDead&&blueDead) winner='Draw!';
-      else if(redDead) winner='🔵 Blue Team Wins!';
-      else winner='🔴 Red Team Wins!';
-      gameState='gameOver';gameOverTimer=180;
-    }
-  } else {
-    if(players[0].stocks<=0||players[1].stocks<=0){
-      if(players[0].stocks<=0&&players[1].stocks<=0)winner='Draw!';
-      else if(players[0].stocks<=0)winner=networkMode==='test'?'Dummy Wins?!':`P2 (${players[1].ch.name}) Wins!`;
-      else winner=`P1 (${players[0].ch.name}) Wins!`;
-      gameState='gameOver';gameOverTimer=180;
-    }
+  if(players[0].stocks<=0||players[1].stocks<=0){
+    if(players[0].stocks<=0&&players[1].stocks<=0)winner='Draw!';
+    else if(players[0].stocks<=0)winner=networkMode==='test'?'Dummy Wins?!':`P2 (${players[1].ch.name}) Wins!`;
+    else winner=`P1 (${players[0].ch.name}) Wins!`;
+    gameState='gameOver';gameOverTimer=180;
   }
 }
 
 function resetMenu(){
-  gameState='modeSelect';selectStep=0;p1Sel=0;p2Sel=1;p3Sel=2;p4Sel=3;stageSel=0;p1Confirmed=false;
-  myPn=1;myCharSel=0;charConfirmed=false;netInputs={};multiConns=[];confirmedChars={};
-  if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}rtcConn=null;netConnected=false;networkMode='none';isHost=false;gameMode='1v1';
+  gameState='modeSelect';selectStep=0;p1Sel=0;p2Sel=1;stageSel=0;p1Confirmed=false;
+  confirmedChars={};
+  if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}rtcConn=null;netConnected=false;networkMode='none';isHost=false;
   bullets.length=0;particles.length=0;miniSwords.length=0;rocketArms.length=0;rocketMines.length=0;smokeClouds.length=0;unstableHeads.length=0;knives.length=0;throwSwords.length=0;pristineRockets.length=0;
 }
 
@@ -3351,18 +2975,9 @@ function loop(){
     for(const b of bullets)b.draw();
     for(const p of players)p.draw();
     drawParticles();ctx.restore();
-    if(gameMode==='2v2'){
-      players[0].drawHUD('left',0);players[1].drawHUD('left',1);
-      players[2].drawHUD('right',0);players[3].drawHUD('right',1);
-      // Team labels
-      ctx.font='bold 10px monospace';ctx.textAlign='left';ctx.fillStyle='#ff4455';ctx.fillText('RED TEAM',10,8);
-      ctx.textAlign='right';ctx.fillStyle='#4488ff';ctx.fillText('BLUE TEAM',W-10,8);
-    } else {
-      players[0].drawHUD('left');players[1].drawHUD('right');
-    }
+    players[0].drawHUD('left');players[1].drawHUD('right');
     ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='10px monospace';ctx.textAlign='center';
     if(networkMode==='test') ctx.fillText('WASD+Mouse  |  Space: shield  |  R: reset dummy  |  ESC: exit test mode',W/2,H-6);
-    else if(gameMode==='2v2') ctx.fillText(isHost?'RED TEAM (Host) — WASD + Arrows':'BLUE TEAM (Guest) — WASD + Arrows',W/2,H-6);
     else if(networkMode==='none') ctx.fillText('P1: WASD+LClick+RClick(charge)+LShift(dash)+Space(shield)  |  P2: Arrows+Z/X(charge)+RShift(dash)+Ctrl(shield)',W/2,H-6);
     else ctx.fillText(isHost?'You are P1 (Host)':'You are P2 (Guest)',W/2,H-6);
   }
