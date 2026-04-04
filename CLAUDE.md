@@ -19,8 +19,8 @@ Everything is in `index.html`. The file is structured roughly top-to-bottom:
 7. **Particle system** — `addHitParticles()`, `updateParticles()`, `drawParticles()`
 8. **Helper functions** — `rrPath/rrFill/rrStroke` (rounded rect), `aabb()`, `drawAttackArc()`
 9. **Player class** — Core game logic: physics, input handling, attack state machine, collision, shield/dash/charge systems
-10. **Projectile classes** — `RocketArm`, `RocketMine`, `Knife`, `ThrowSword`, `MiniSword`, `PristineRocket`, `SmokeCloud`, `UnstableHead`, `FirePebble`
-11. **Character draw functions** — `drawBolt`, `drawCrusher`, `drawZippy`, `drawBlaster`, `drawEdge`, `drawPierce`, `drawRocket`, `drawUnstable`, `drawBlade`, `drawPristine`, `drawMagma`, `drawDummy`
+10. **Projectile classes** — `RocketArm`, `RocketMine`, `Knife`, `ThrowSword`, `MiniSword`, `PristineRocket`, `SmokeCloud`, `UnstableHead`, `FirePebble`, `FactoryBolt`, `FactoryGear`, `FactoryZap`
+11. **Character draw functions** — `drawBolt`, `drawCrusher`, `drawZippy`, `drawBlaster`, `drawEdge`, `drawPierce`, `drawRocket`, `drawUnstable`, `drawBlade`, `drawPristine`, `drawMagma`, `drawFactory`, `drawDummy`
 12. **Screen draw functions** — `drawModeSelect`, `drawCharSelect`, `drawStageSelect`
 13. **Game loop** — `updateGame()`, `loop()` (runs via `requestAnimationFrame`)
 
@@ -40,8 +40,35 @@ Everything is in `index.html`. The file is structured roughly top-to-bottom:
 | 9 | DUMMY | Training dummy (not in CHARS) |
 | 10 | PRISTINE | Flight, homing rocket, laser shield |
 | 11 | MAGMA | Flamethrower, fire pebble w/ explosion |
+| 12 | FACTORY | Gear attacks, Bolt minion, Zap bots, drill |
 
 Character stats reference sheet: `Robot Rivals Stats - Sheet1.csv`
+
+## Stage IDs
+
+| ID | Name | Notes |
+|----|------|-------|
+| 0 | THE FOUNDRY | Fire/industrial, 3 platforms |
+| 1 | ORBITAL STATION | Space, 4 platforms |
+| 2 | SCRAPYARD | Junk piles, 5 staggered platforms |
+| 3 | NEON CITY | Cyberpunk, 5 platforms |
+| 4 | ARCTIC BASE | Frozen, 3 platforms |
+| 5 | CLOUD TEMPLE | Sky ruins, 5 platforms |
+| 6 | MOLTEN CORE | Volcanic, 5 platforms |
+| 7 | DATA REALM | Digital/matrix, 3 platforms |
+| 8 | THE CARNIVAL | 6 platforms rotating on a Ferris wheel (`ferrisWheel:true`, driven by `carnivalAngle`) |
+| 9 | THE JUNGLE | 5 trees with branch platforms at arching heights (`jungle:true`); trunks/foliage drawn by `drawJungleTrees()` |
+| 10 | SKY TEMPLE | No bottom floor; three solid non-droppable bases via `grounds:[...]` array; `ground` is a dummy off-screen rect |
+| 11 | NEO CITY | 5 skyscraper rooftops as `grounds`; building bodies drawn by `drawNeoBuildings()`; `neocity:true` flag |
+
+## Adding a New Stage
+
+1. Add an entry to the `STAGES` array (after the last stage) with a unique `id`, color palette, `ground`, `plats`, and `spawnX`.
+2. Add a `} else if(st.id===<id>){` case in `drawStageBG()` for animated/decorative background elements.
+3. For moving/interactive platforms: add a global state variable near `carnivalAngle`, mutate `curStage.plats[i].x/.y` in-place at the top of `updateGame()`, and create a draw helper called from `drawStageGeom()`.
+4. For solid non-droppable bases (no bottom floor): use `grounds:[{x,y,w,h},...]` instead of `plats`. Set `ground` to `{x:0,y:2000,w:1000,h:0}` (off-screen dummy). The `grounds` array is collision-checked in `Player.update()` and `MiniSword.update()`, and drawn in `drawStageGeom()` and the stage select preview.
+4. The stage select preview renders automatically from `st.plats` — only add custom preview code if special geometry needs to be shown.
+5. Update this Stage IDs table.
 
 ## Adding a New Character
 
