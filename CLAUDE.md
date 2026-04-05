@@ -20,7 +20,7 @@ Everything is in `index.html`. The file is structured roughly top-to-bottom:
 8. **Helper functions** — `rrPath/rrFill/rrStroke` (rounded rect), `aabb()`, `drawAttackArc()`
 9. **Player class** — Core game logic: physics, input handling, attack state machine, collision, shield/dash/charge systems
 10. **Projectile classes** — `RocketArm`, `RocketMine`, `Knife`, `ThrowSword`, `MiniSword`, `PristineRocket`, `SmokeCloud`, `UnstableHead`, `FirePebble`, `FactoryBolt`, `FactoryGear`, `FactoryZap`
-11. **Character draw functions** — `drawBolt`, `drawCrusher`, `drawZippy`, `drawBlaster`, `drawEdge`, `drawPierce`, `drawRocket`, `drawUnstable`, `drawBlade`, `drawPristine`, `drawMagma`, `drawFactory`, `drawDummy`
+11. **Character draw functions** — `drawBolt`, `drawCrusher`, `drawZippy`, `drawBlaster`, `drawEdge`, `drawPierce`, `drawRocket`, `drawUnstable`, `drawBlade`, `drawPristine`, `drawMagma`, `drawFactory`, `drawGlitch`, `drawDummy`
 12. **Screen draw functions** — `drawModeSelect`, `drawCharSelect`, `drawStageSelect`
 13. **Game loop** — `updateGame()`, `loop()` (runs via `requestAnimationFrame`)
 
@@ -41,6 +41,7 @@ Everything is in `index.html`. The file is structured roughly top-to-bottom:
 | 10 | PRISTINE | Flight, homing rocket, laser shield |
 | 11 | MAGMA | Flamethrower, fire pebble w/ explosion |
 | 12 | FACTORY | Gear attacks, Bolt minion, Zap bots, drill |
+| 13 | GLITCH | Teleport arm lights, phase invincibility, stolen weapon side heavy |
 
 Character stats reference sheet: `Robot Rivals Stats - Sheet1.csv`
 

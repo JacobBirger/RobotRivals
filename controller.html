@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Robot Rivals Controller</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:monospace;color:#fff;touch-action:none;}
+#topbar{position:absolute;top:0;left:0;right:0;height:32px;display:flex;align-items:center;justify-content:center;gap:16px;z-index:10;}
+#status{font-size:12px;color:#666;}
+#status.ok{color:#4c4;}
+#playerSel{background:#222;color:#fff;border:1px solid #555;font-family:monospace;font-size:13px;padding:2px 6px;border-radius:4px;}
+
+/* Main layout: left half = dpad zone, right half = buttons */
+#dpadZone{position:absolute;left:0;top:32px;width:45%;bottom:0;}
+#btnZone{position:absolute;right:0;top:32px;width:55%;bottom:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;padding:8px;}
+
+/* D-pad visual indicator (canvas drawn) */
+#dpadCanvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0.5;}
+
+/* Action buttons fill right half */
+.abtn{border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:bold;color:rgba(255,255,255,0.6);border:2px solid;flex-shrink:0;}
+.abtn.active{color:#fff;}
+
+#b-jump{background:rgba(68,170,255,0.1);border-color:rgba(68,170,255,0.3);}
+#b-jump.active{background:rgba(68,170,255,0.4);border-color:rgba(68,170,255,0.8);}
+#b-light{background:rgba(100,255,100,0.08);border-color:rgba(100,255,100,0.25);}
+#b-light.active{background:rgba(100,255,100,0.35);border-color:rgba(100,255,100,0.7);}
+#b-heavy{background:rgba(255,100,100,0.08);border-color:rgba(255,100,100,0.25);}
+#b-heavy.active{background:rgba(255,100,100,0.35);border-color:rgba(255,100,100,0.7);}
+#b-shield{background:rgba(255,200,50,0.08);border-color:rgba(255,200,50,0.25);}
+#b-shield.active{background:rgba(255,200,50,0.35);border-color:rgba(255,200,50,0.7);}
+#b-dash{background:rgba(200,100,255,0.08);border-color:rgba(200,100,255,0.25);}
+#b-dash.active{background:rgba(200,100,255,0.35);border-color:rgba(200,100,255,0.7);}
+
+/* Portrait layout */
+@media (orientation:portrait){
+  #dpadZone{width:100%;height:45%;top:auto;bottom:0;}
+  #btnZone{width:100%;height:calc(55% - 32px);top:32px;bottom:auto;flex-direction:row;}
+  .abtn{width:30%;height:44%;}
+  #dpadCanvas{width:180px;height:180px;}
+}
+/* Landscape layout */
+@media (orientation:landscape){
+  #dpadZone{width:38%;height:calc(100% - 32px);}
+  #btnZone{width:62%;height:calc(100% - 32px);padding:6px 12px;gap:6px;}
+  .abtn{width:31%;height:46%;}
+  #dpadCanvas{width:160px;height:160px;}
+}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div id="status">Connecting...</div>
+  <select id="playerSel"><option value="1">P1</option><option value="2">P2</option></select>
+</div>
+
+<div id="dpadZone">
+  <canvas id="dpadCanvas" width="160" height="160"></canvas>
+</div>
+
+<div id="btnZone">
+  <div class="abtn" id="b-jump" data-key="jump">JUMP</div>
+  <div class="abtn" id="b-light" data-key="light">LIGHT</div>
+  <div class="abtn" id="b-heavy" data-key="heavy">HEAVY</div>
+  <div class="abtn" id="b-shield" data-key="shield">SHIELD</div>
+  <div class="abtn" id="b-dash" data-key="dash">DASH</div>
+</div>
+
+<script>
+const state={left:false,right:false,up:false,down:false,jump:false,light:false,heavy:false,shield:false,dash:false};
+const statusEl=document.getElementById('status');
+const playerSel=document.getElementById('playerSel');
+const dpadZone=document.getElementById('dpadZone');
+const dpadCanvas=document.getElementById('dpadCanvas');
+const dpadCtx=dpadCanvas.getContext('2d');
+let ws=null;
+
+// Track touches: each touch is either 'dpad' or a button key
+const touches=new Map(); // touchId -> {zone:'dpad'|'btn', key:string|null}
+
+function connect(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${proto}://${location.host}`);
+  ws.onopen=()=>{
+    ws.send(JSON.stringify({type:'register',role:'controller',player:parseInt(playerSel.value)}));
+    statusEl.textContent='Connected';statusEl.className='ok';
+  };
+  ws.onclose=()=>{statusEl.textContent='Disconnected';statusEl.className='';setTimeout(connect,2000);};
+  ws.onerror=()=>{};
+}
+
+function send(){
+  if(ws&&ws.readyState===1){
+    ws.send(JSON.stringify({type:'input',player:parseInt(playerSel.value),...state}));
+  }
+}
+
+// D-pad: determine direction from touch position relative to zone center
+function getDpadDir(tx,ty){
+  const rect=dpadZone.getBoundingClientRect();
+  const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+  const dx=tx-cx, dy=ty-cy;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist<18) return {left:false,right:false,up:false,down:false}; // dead zone
+  const ang=Math.atan2(dy,dx);
+  // 8-direction with diagonals
+  const left=ang>Math.PI*0.625||ang<-Math.PI*0.625;
+  const right=ang>-Math.PI*0.375&&ang<Math.PI*0.375;
+  const up=ang<-Math.PI*0.125&&ang>-Math.PI*0.875;
+  const down=ang>Math.PI*0.125&&ang<Math.PI*0.875;
+  return {left,right,up,down};
+}
+
+function applyDpad(tx,ty){
+  const dir=getDpadDir(tx,ty);
+  state.left=dir.left; state.right=dir.right;
+  state.up=dir.up; state.down=dir.down;
+  drawDpad(dir);
+}
+
+function clearDpad(){
+  state.left=false;state.right=false;state.up=false;state.down=false;
+  drawDpad({left:false,right:false,up:false,down:false});
+}
+
+function drawDpad(dir){
+  const c=dpadCtx, w=dpadCanvas.width, h=dpadCanvas.height, cx=w/2, cy=h/2;
+  c.clearRect(0,0,w,h);
+  // Cross background
+  const s=28, L=60;
+  c.fillStyle='rgba(255,255,255,0.06)';
+  c.fillRect(cx-s,cy-L,s*2,L*2); // vertical
+  c.fillRect(cx-L,cy-s,L*2,s*2); // horizontal
+  // Direction arrows
+  const arrows=[
+    {key:'up',   x:cx,y:cy-44,a:-Math.PI/2},
+    {key:'down', x:cx,y:cy+44,a:Math.PI/2},
+    {key:'left', x:cx-44,y:cy,a:Math.PI},
+    {key:'right',x:cx+44,y:cy,a:0},
+  ];
+  for(const ar of arrows){
+    const on=dir[ar.key];
+    c.save();c.translate(ar.x,ar.y);c.rotate(ar.a);
+    c.fillStyle=on?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.2)';
+    c.beginPath();c.moveTo(14,0);c.lineTo(-8,-10);c.lineTo(-8,10);c.closePath();c.fill();
+    c.restore();
+  }
+}
+
+function isInDpadZone(tx,ty){
+  const rect=dpadZone.getBoundingClientRect();
+  return tx>=rect.left&&tx<=rect.right&&ty>=rect.top&&ty<=rect.bottom;
+}
+
+function getBtnFromPoint(tx,ty){
+  const el=document.elementFromPoint(tx,ty);
+  return (el&&el.dataset&&el.dataset.key)?el:null;
+}
+
+function handleTouchStart(e){
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    const tx=t.clientX,ty=t.clientY;
+    if(isInDpadZone(tx,ty)){
+      touches.set(t.identifier,{zone:'dpad'});
+      applyDpad(tx,ty);
+      send();
+    }else{
+      const btn=getBtnFromPoint(tx,ty);
+      if(btn){
+        const key=btn.dataset.key;
+        touches.set(t.identifier,{zone:'btn',key});
+        state[key]=true;
+        btn.classList.add('active');
+        send();
+      }
+    }
+  }
+}
+
+function handleTouchMove(e){
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    const info=touches.get(t.identifier);
+    if(!info)continue;
+    const tx=t.clientX,ty=t.clientY;
+    if(info.zone==='dpad'){
+      applyDpad(tx,ty);
+      send();
+    }else{
+      // Button zone: check if finger slid to a different button
+      const btn=getBtnFromPoint(tx,ty);
+      const newKey=btn?btn.dataset.key:null;
+      if(newKey!==info.key){
+        if(info.key){state[info.key]=false;const ob=document.querySelector(`[data-key="${info.key}"]`);if(ob)ob.classList.remove('active');}
+        if(newKey){state[newKey]=true;btn.classList.add('active');info.key=newKey;}
+        else{info.key=null;}
+        send();
+      }
+    }
+  }
+}
+
+function handleTouchEnd(e){
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    const info=touches.get(t.identifier);
+    if(!info){continue;}
+    if(info.zone==='dpad'){
+      // Only clear dpad if no other dpad touches remain
+      touches.delete(t.identifier);
+      let hasDpad=false;
+      for(const [,v] of touches){if(v.zone==='dpad'){hasDpad=true;break;}}
+      if(!hasDpad)clearDpad();
+    }else{
+      if(info.key){state[info.key]=false;const btn=document.querySelector(`[data-key="${info.key}"]`);if(btn)btn.classList.remove('active');}
+      touches.delete(t.identifier);
+    }
+    send();
+  }
+}
+
+document.addEventListener('touchstart',handleTouchStart,{passive:false});
+document.addEventListener('touchmove',handleTouchMove,{passive:false});
+document.addEventListener('touchend',handleTouchEnd,{passive:false});
+document.addEventListener('touchcancel',handleTouchEnd,{passive:false});
+
+playerSel.addEventListener('change',()=>{
+  if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'register',role:'controller',player:parseInt(playerSel.value)}));
+});
+
+// Initial draw
+drawDpad({left:false,right:false,up:false,down:false});
+connect();
+</script>
+</body>
+</html>
