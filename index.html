@@ -104,14 +104,16 @@ function getP1Input() {
            down:keys['KeyS']||keys['_gp1D']||keys['_ph1D'],up:keys['KeyW']||keys['_gp1U']||keys['_ph1U'],
            jump:p1JumpPend,light:p1LightPend,heavy:p1HeavyPend,shield:p1ShieldPend,
            dash:p1DashPend,heavyHeld:keys['KeyX']||keys['_gp1Hvy']||keys['_ph1Hvy'],heavyRelease:p1HeavyRelease,
-           lightHeld:keys['KeyZ']||mouseLeft||keys['_gp1Lt']||keys['_ph1Lt'] };
+           lightHeld:keys['KeyZ']||mouseLeft||keys['_gp1Lt']||keys['_ph1Lt'],
+           jumpHeld:keys['KeyW']||keys['_gp1JH']||keys['_ph1JH'] };
 }
 function getP2Input() {
   return { left:keys['ArrowLeft']||keys['_gp2L']||keys['_ph2L'],right:keys['ArrowRight']||keys['_gp2R']||keys['_ph2R'],
            down:keys['ArrowDown']||keys['_gp2D']||keys['_ph2D'],up:keys['ArrowUp']||keys['_gp2U']||keys['_ph2U'],
            jump:p2JumpPend,light:p2LightPend,heavy:p2HeavyPend,shield:p2ShieldPend,
            dash:p2DashPend,heavyHeld:keys['BracketRight']||keys['_gp2Hvy']||keys['_ph2Hvy'],heavyRelease:p2HeavyRelease,
-           lightHeld:keys['BracketLeft']||keys['_gp2Lt']||keys['_ph2Lt'] };
+           lightHeld:keys['BracketLeft']||keys['_gp2Lt']||keys['_ph2Lt'],
+           jumpHeld:keys['ArrowUp']||keys['_gp2JH']||keys['_ph2JH'] };
 }
 function dummyInput() { return {left:false,right:false,down:false,up:false,jump:false,light:false,heavy:false,shield:false,dash:false,heavyHeld:false,heavyRelease:false,lightHeld:false}; }
 
@@ -131,7 +133,7 @@ function pollGamepads(){
     const gpLeft=sL||btn(14),gpRight=sR||btn(15),gpUp=sU||btn(12),gpDown=sD||btn(13);
     if(gi===0){
       keys['_gp1L']=gpLeft;keys['_gp1R']=gpRight;keys['_gp1U']=gpUp;keys['_gp1D']=gpDown;
-      keys['_gp1Hvy']=btn(3);keys['_gp1Lt']=btn(2);
+      keys['_gp1Hvy']=btn(3);keys['_gp1Lt']=btn(2);keys['_gp1JH']=btn(0);
       if(edge(0))p1JumpPend=true;
       if(edge(2))p1LightPend=true;
       if(edge(3))p1HeavyPend=true;
@@ -140,7 +142,7 @@ function pollGamepads(){
       if(rel(3)&&gameState==='game')p1HeavyRelease=true;
     }else{
       keys['_gp2L']=gpLeft;keys['_gp2R']=gpRight;keys['_gp2U']=gpUp;keys['_gp2D']=gpDown;
-      keys['_gp2Hvy']=btn(3);keys['_gp2Lt']=btn(2);
+      keys['_gp2Hvy']=btn(3);keys['_gp2Lt']=btn(2);keys['_gp2JH']=btn(0);
       if(edge(0))p2JumpPend=true;
       if(edge(2))p2LightPend=true;
       if(edge(3))p2HeavyPend=true;
@@ -190,7 +192,7 @@ function initPhoneController(){
       const rel=(k)=>!msg[k]&&prev[k];
       if(pi===0){
         keys['_ph1L']=msg.left;keys['_ph1R']=msg.right;keys['_ph1U']=msg.up;keys['_ph1D']=msg.down;
-        keys['_ph1Hvy']=msg.heavy;keys['_ph1Lt']=msg.light;
+        keys['_ph1Hvy']=msg.heavy;keys['_ph1Lt']=msg.light;keys['_ph1JH']=msg.jump;
         if(edge('jump'))p1JumpPend=true;
         if(edge('light'))p1LightPend=true;
         if(edge('heavy'))p1HeavyPend=true;
@@ -199,7 +201,7 @@ function initPhoneController(){
         if(rel('heavy')&&gameState==='game')p1HeavyRelease=true;
       }else{
         keys['_ph2L']=msg.left;keys['_ph2R']=msg.right;keys['_ph2U']=msg.up;keys['_ph2D']=msg.down;
-        keys['_ph2Hvy']=msg.heavy;keys['_ph2Lt']=msg.light;
+        keys['_ph2Hvy']=msg.heavy;keys['_ph2Lt']=msg.light;keys['_ph2JH']=msg.jump;
         if(edge('jump'))p2JumpPend=true;
         if(edge('light'))p2LightPend=true;
         if(edge('heavy'))p2HeavyPend=true;
@@ -249,7 +251,7 @@ let netJumpPend=false,netLightPend=false,netHeavyPend=false,netShieldPend=false;
 let netDashPend=false,netHeavyRelease=false;
 let confirmedChars={}; // pn → char index
 
-function defaultInput(){return{left:false,right:false,down:false,up:false,jump:false,light:false,heavy:false,shield:false,dash:false,heavyHeld:false,heavyRelease:false,lightHeld:false};}
+function defaultInput(){return{left:false,right:false,down:false,up:false,jump:false,light:false,heavy:false,shield:false,dash:false,heavyHeld:false,heavyRelease:false,lightHeld:false,jumpHeld:false};}
 function serializePlayer(p){return{x:p.x,y:p.y,vx:p.vx,vy:p.vy,dmg:p.damage,st:p.stocks,fa:p.facing,hst:p.hstun,hf:p.hitFlash,onG:p.onGnd,onPl:p.onPlat,sA:p.shieldActive,sc:p.shieldCooldown,dA:p.dashActive,dead:p.dead,jl:p.jLeft,rt:p.respawnT,chg:p.charging,chgT:p.chargeTime,flyA:p.flyActive,flyT:p.flyTimer,flyC:p.flyCooldown,flyCM:p.flyMaxCool,lsA:p.laserShieldActive,lsT:p.laserShieldTimer,mf:p.magmaFuel,fbC:p.factoryBoltCD,fzC:p.factoryZapCD,gpt:p.glitchPhaseTimer,gg:p.glitchGhost?1:0,gw:p.glitchWeapon,atk:p.atk?{tp:p.atk.type,di:p.atk.dir,fr:p.atk.frame,su:p.atk.su,act:p.atk.act,el:p.atk.el,cn:p.atk.comboN,cr:p.atk.chargeRatio}:null};}
 function applyPlayerSt(p,s){p.x=s.x;p.y=s.y;p.vx=s.vx;p.vy=s.vy;p.damage=s.dmg;p.stocks=s.st;p.facing=s.fa;p.hstun=s.hst;p.hitFlash=s.hf;p.onGnd=s.onG;p.onPlat=s.onPl;p.shieldActive=s.sA;p.shieldCooldown=s.sc;p.dashActive=s.dA;p.dead=s.dead;p.jLeft=s.jl;p.respawnT=s.rt||0;p.charging=s.chg||false;p.chargeTime=s.chgT||0;p.flyActive=s.flyA||false;p.flyTimer=s.flyT||0;p.flyCooldown=s.flyC||0;p.flyMaxCool=s.flyCM||180;p.laserShieldActive=s.lsA||false;p.laserShieldTimer=s.lsT||0;if(s.mf!=null)p.magmaFuel=s.mf;if(s.fbC!=null)p.factoryBoltCD=s.fbC;if(s.fzC!=null)p.factoryZapCD=s.fzC;if(s.gpt!=null)p.glitchPhaseTimer=s.gpt;if(s.gg!=null)p.glitchGhost=!!s.gg;if(s.gw!=null)p.glitchWeapon=s.gw;if(s.atk){if(!p.atk||p.atk.type!==s.atk.tp||p.atk.dir!==s.atk.di){p.atk={type:s.atk.tp,dir:s.atk.di,frame:s.atk.fr,su:s.atk.su,act:s.atk.act,el:s.atk.el,hit:false,comboN:s.atk.cn,bulletFired:true,chargeRatio:s.atk.cr||0};}else{p.atk.frame=s.atk.fr;}}else{p.atk=null;}}
 function buildStateMsg1v1(){return{t:'state',ps:players.map(serializePlayer),bs:bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,oi:players.indexOf(b.owner),hv:b.heavy?1:0,w:b.wide?1:0,dmg:b.dmg,kb:b.kb,md:b.maxDist,ox:b.ox,oy:b.oy})),prs:pristineRockets.map(r=>({x:r.x,y:r.y,vx:r.vx,vy:r.vy,oi:players.indexOf(r.owner),ti:r.timer}))};}
@@ -276,7 +278,7 @@ function clearPendNet(inp){inp.jump=false;inp.light=false;inp.heavy=false;inp.sh
 function getNetInput() {
   return {left:netRaw.left,right:netRaw.right,down:netRaw.down,up:netRaw.up,
           jump:netJumpPend,light:netLightPend,heavy:netHeavyPend,shield:netShieldPend,
-          dash:netDashPend,heavyHeld:netRaw.heavyHeld,heavyRelease:netHeavyRelease};
+          dash:netDashPend,heavyHeld:netRaw.heavyHeld,heavyRelease:netHeavyRelease,jumpHeld:netRaw.up||false};
 }
 function getInputForPn(pn) {
   if (networkMode==='none') return pn===1?getP1Input():getP2Input();
@@ -576,49 +578,49 @@ const STAGES = [
     pCol:'#994422',pTop:'#cc6633',aCol:'#ff4400',
     ground:{x:50,y:500,w:900,h:30},
     plats:[{x:175,y:390,w:200,h:18},{x:610,y:390,w:200,h:18},{x:360,y:295,w:265,h:18}],
-    spawnX:[225,730] },
+    spawnX:[225,730], music:{src:'soundtrack/TheFoundry.mp3',volume:0.5} },
   { id:1,name:'ORBITAL STATION',desc:'A station orbiting the robot homeworld.',
     bgT:'#000008',bgB:'#000033',gCol:'#223355',gTop:'#334477',gEdge:'#4466aa',
     pCol:'#334477',pTop:'#4466aa',aCol:'#4488ff',
     ground:{x:100,y:520,w:800,h:22},
     plats:[{x:130,y:405,w:155,h:15},{x:705,y:405,w:155,h:15},{x:285,y:310,w:165,h:15},{x:545,y:310,w:165,h:15}],
-    spawnX:[205,760] },
+    spawnX:[205,760], music:{src:'soundtrack/OrbitalStation.mp3',volume:0.5} },
   { id:2,name:'SCRAPYARD',desc:'Mountains of broken machines.',
     bgT:'#050a02',bgB:'#0f1a07',gCol:'#3a4a22',gTop:'#4a5a2a',gEdge:'#8ab040',
     pCol:'#445522',pTop:'#556633',aCol:'#88cc33',
     ground:{x:20,y:505,w:960,h:35},
     plats:[{x:80,y:408,w:145,h:20},{x:265,y:338,w:125,h:20},{x:435,y:272,w:128,h:20},{x:610,y:338,w:125,h:20},{x:780,y:408,w:145,h:20}],
-    spawnX:[160,815] },
+    spawnX:[160,815], music:{src:'soundtrack/TheScrapyard.mp3',volume:0.5} },
   { id:3,name:'NEON CITY',desc:'Cyberpunk rooftops under neon rain.',
     bgT:'#050010',bgB:'#110033',gCol:'#222255',gTop:'#4444aa',gEdge:'#aa44ff',
     pCol:'#333366',pTop:'#5555bb',aCol:'#ff44ff',
     ground:{x:80,y:500,w:840,h:28},
     plats:[{x:150,y:380,w:180,h:16},{x:660,y:380,w:180,h:16},{x:350,y:295,w:300,h:16},{x:200,y:200,w:130,h:16},{x:680,y:200,w:130,h:16}],
-    spawnX:[220,750] },
+    spawnX:[220,750], music:{src:'soundtrack/Neoncity.mp3',volume:0.5} },
   { id:4,name:'ARCTIC BASE',desc:'A frozen research station.',
     bgT:'#050f1a',bgB:'#0a1e2e',gCol:'#446688',gTop:'#88aabb',gEdge:'#aaccdd',
     pCol:'#557799',pTop:'#99bbcc',aCol:'#00ccff',
     ground:{x:30,y:510,w:940,h:26},
     plats:[{x:200,y:410,w:170,h:18},{x:620,y:410,w:170,h:18},{x:380,y:320,w:240,h:18}],
-    spawnX:[215,700] },
+    spawnX:[215,700], music:{src:'soundtrack/ArcticBase.mp3',volume:0.5} },
   { id:5,name:'CLOUD TEMPLE',desc:'Ancient ruins above the clouds.',
     bgT:'#4488cc',bgB:'#aaddff',gCol:'#ffffff',gTop:'#eeeeff',gEdge:'#ccddff',
     pCol:'#ddeeff',pTop:'#ffffff',aCol:'#ffdd00',
     ground:{x:40,y:510,w:920,h:20},
     plats:[{x:120,y:400,w:160,h:14},{x:360,y:318,w:140,h:14},{x:520,y:318,w:140,h:14},{x:740,y:400,w:160,h:14},{x:420,y:228,w:160,h:14}],
-    spawnX:[180,800] },
+    spawnX:[180,800], music:{src:'soundtrack/CloudTemple.mp3',volume:0.5} },
   { id:6,name:'MOLTEN CORE',desc:'Deep inside a volcanic super-forge.',
     bgT:'#200500',bgB:'#3d0000',gCol:'#551100',gTop:'#cc3300',gEdge:'#ff4400',
     pCol:'#441100',pTop:'#882200',aCol:'#ff6600',
     ground:{x:0,y:508,w:1000,h:30},
     plats:[{x:100,y:400,w:150,h:18},{x:375,y:310,w:130,h:18},{x:570,y:310,w:130,h:18},{x:755,y:400,w:150,h:18},{x:440,y:215,w:120,h:18}],
-    spawnX:[160,810] },
+    spawnX:[160,810], music:{src:'soundtrack/MoltenCore.mp3',volume:0.5} },
   { id:7,name:'DATA REALM',desc:'A glitching digital dimension.',
     bgT:'#000000',bgB:'#000a00',gCol:'#003300',gTop:'#006600',gEdge:'#00ff00',
     pCol:'#001a00',pTop:'#003300',aCol:'#00ff88',
     ground:{x:50,y:505,w:900,h:25},
     plats:[{x:180,y:380,w:200,h:16},{x:600,y:380,w:200,h:16},{x:350,y:270,w:300,h:16}],
-    spawnX:[220,730] },
+    spawnX:[220,730], music:{src:'soundtrack/DataRealm.mp3',volume:0.5} },
   { id:8,name:'THE CARNIVAL',desc:'Ride the spinning ferris wheel!',ferrisWheel:true,
     bgT:'#050215',bgB:'#110830',gCol:'#2a1050',gTop:'#4a1a88',gEdge:'#aa55ff',
     pCol:'#cc2244',pTop:'#ff4466',aCol:'#ffdd00',
@@ -628,7 +630,7 @@ const STAGES = [
       {x:610,y:310,w:80,h:12},{x:535,y:440,w:80,h:12},{x:385,y:440,w:80,h:12},
       {x:310,y:310,w:80,h:12},{x:385,y:180,w:80,h:12},{x:535,y:180,w:80,h:12}
     ],
-    spawnX:[150,850] },
+    spawnX:[150,850], music:{src:'soundtrack/TheCarnival.mp3',volume:0.5} },
   { id:9,name:'THE JUNGLE',desc:'Battle through an ancient jungle canopy.',jungle:true,
     bgT:'#020d01',bgB:'#071508',gCol:'#1a3a0a',gTop:'#2a5510',gEdge:'#55aa22',
     pCol:'#3d2208',pTop:'#6b4010',aCol:'#88ff33',
@@ -642,7 +644,7 @@ const STAGES = [
       {x:630,y:420,w:70,h:10},{x:700,y:340,w:70,h:10},{x:630,y:260,w:70,h:10},{x:700,y:180,w:70,h:10},
       {x:810,y:420,w:70,h:10},{x:880,y:340,w:70,h:10},{x:810,y:260,w:70,h:10},{x:880,y:180,w:70,h:10}
     ],
-    spawnX:[170,830] },
+    spawnX:[170,830], music:{src:'soundtrack/TheJungle.mp3',volume:0.5} },
   { id:10,name:'SKY TEMPLE',desc:'Ancient ruins suspended above the clouds.',
     bgT:'#0a1530',bgB:'#152245',gCol:'#5a4a28',gTop:'#8a7248',gEdge:'#ffcc44',
     pCol:'#5a4a28',pTop:'#8a7248',aCol:'#ffcc44',
@@ -654,7 +656,7 @@ const STAGES = [
       {x:720,y:400,w:260,h:25}   // right base (mirrors left)
     ],
     plats:[],
-    spawnX:[150,850] },
+    spawnX:[150,850], music:{src:'soundtrack/SkyTemple.mp3',volume:0.5} },
   { id:11,name:'NEO CITY',desc:'Fight on the rooftops of a gleaming megacity.',neocity:true,
     bgT:'#010a0d',bgB:'#011820',gCol:'#0d2a35',gTop:'#1a4a5a',gEdge:'#00e5ff',
     pCol:'#0d2a35',pTop:'#1a4a5a',aCol:'#00e5ff',
@@ -667,7 +669,7 @@ const STAGES = [
       {x:820,y:370,w:150,h:20}   // right tower (low)
     ],
     plats:[],
-    spawnX:[105,895] },
+    spawnX:[105,895], music:{src:'soundtrack/NeoCity.mp3',volume:0.5} },
 ];
 
 // ---- Particles / Shake ----
@@ -984,13 +986,13 @@ class Player {
     // Dash
     this.dashActive=false; this.dashTimer=0; this.dashCD=0;
     // Charge heavy
-    this.charging=false; this.chargeTime=0;
+    this.charging=false; this.chargeTime=0; this.chargeDir='side';
     // ROCKET arm ammo + cooldowns
     this.armsLeft=4; this.rocketLightCD=0; this.rocketSideHeavyCD=0;
     // Status effects
     this.burnTimer=0; this.burnTick=0; this.hitImmune=0;
     // PRISTINE flight
-    this.flyActive=false; this.flyTimer=0; this.flyCooldown=0; this.flyMaxCool=180;
+    this.flyActive=false; this.flyTimer=180; this.flyCooldown=0; this.flyMaxCool=180;
     // PRISTINE laser shield
     this.laserShieldActive=false; this.laserShieldTimer=0;
     // MAGMA flamethrower fuel
@@ -1102,28 +1104,22 @@ class Player {
     }
     if(!inp.left&&!inp.right&&free&&!inAtk&&!this.charging&&opp&&!opp.dead) this.facing=opp.cx>this.cx?1:-1;
 
-    // PRISTINE flight mechanic
+    // PRISTINE flight mechanic (hold jump button = jetpack; fuel recharges on ground only)
     if(this.ch.id===10){
-      if(this.flyCooldown>0) this.flyCooldown--;
-      // Cancel flight if hit
-      if(this.hstun>0&&this.flyActive){
-        this.flyActive=false;
-        this.flyCooldown=Math.max(30,Math.round(this.flyTimer/300*180));
-        this.flyMaxCool=this.flyCooldown; this.flyTimer=0;
+      const flyMax=180;
+      // Fuel recharges only while grounded
+      if((this.onGnd||this.onPlat)&&this.flyTimer<flyMax) this.flyTimer++;
+      // Cancel flight if hit or landing
+      if((this.hstun>0||(this.onGnd||this.onPlat))&&this.flyActive) this.flyActive=false;
+      // Activate: holding jump (not a new press this frame) while airborne with fuel
+      if(free&&!this.flyActive&&this.flyTimer>0&&inp.jumpHeld&&!inp.jump&&!this.onGnd&&!this.onPlat&&!this.dashActive&&!inAtk){
+        this.flyActive=true;
       }
-      // Activate flight when holding up while airborne and no cooldown
-      if(free&&!this.flyActive&&this.flyCooldown===0&&inp.up&&!this.onGnd&&!this.onPlat&&!this.dashActive&&!inAtk){
-        this.flyActive=true; this.flyTimer=0;
-      }
+      // Deactivate if jump released, fuel empty, or started attacking
+      if(this.flyActive&&(!inp.jumpHeld||this.flyTimer<=0||inAtk)) this.flyActive=false;
       if(this.flyActive){
-        if(!inp.up||this.flyTimer>=300){
-          this.flyActive=false;
-          this.flyCooldown=Math.max(30,Math.round(this.flyTimer/300*180));
-          this.flyMaxCool=this.flyCooldown; this.flyTimer=0;
-        } else {
-          this.flyTimer++;
-          this.vy=-this.ch.speed; // actively fly upward at movement speed
-        }
+        this.flyTimer--;
+        this.vy=-this.ch.speed; // jetpack thrust upward
       }
     }
 
@@ -1162,6 +1158,7 @@ class Player {
       // Side light comboN=2: throw knife on first active frame
       if(!bh&&(bd==='side'||bd==='neutral')&&ba.comboN===2&&!ba.bulletFired&&ba.frame===ba.su){
         ba.bulletFired=true;
+        playSfx({freq:1200,freq2:400,type:'sine',decay:0.07,vol:0.14});
         knives.push(new Knife(bx,by,f*kspd,0,this,false));
       }
       // Side heavy: throw sword at end of active frames (second half)
@@ -1169,18 +1166,21 @@ class Player {
         const half=Math.floor(ba.act/2);
         if(!ba.bulletFired&&ba.frame===ba.su+half){
           ba.bulletFired=true;
+          playSfx({freq:800,freq2:200,type:'triangle',decay:0.14,vol:0.16});
           throwSwords.push(new ThrowSword(bx,by,f*(kspd+2),this));
         }
       }
       // Down heavy: dual knife throw on first active frame
       if(bh&&bd==='down'&&!ba.bulletFired&&ba.frame===ba.su){
         ba.bulletFired=true;
+        playSfx({freq:1000,freq2:300,type:'sine',decay:0.09,vol:0.15});
         knives.push(new Knife(this.cx,by,-kspd,0,this,false));
         knives.push(new Knife(this.cx,by, kspd,0,this,false));
       }
       // Up heavy: 3 knife spread on first active frame
       if(bh&&bd==='up'&&!ba.bulletFired&&ba.frame===ba.su){
         ba.bulletFired=true;
+        playSfx({freq:1100,freq2:350,type:'sine',decay:0.1,vol:0.15});
         const spd=kspd;
         knives.push(new Knife(this.cx,by,-spd*0.32,-spd*0.95,this,true));
         knives.push(new Knife(this.cx,by,0,-spd,this,true));
@@ -1198,16 +1198,21 @@ class Player {
       // Up light: fire head projectile on first active frame
       if(!uh&&ud==='up'&&!ua.bulletFired&&ua.frame===ua.su){
         ua.bulletFired=true;
+        playSfx({freq:300,freq2:600,type:'sine',decay:0.08,vol:0.15});
+        playSfx({freq:600,freq2:180,type:'square',decay:0.14,vol:0.1});
         unstableHeads.push(new UnstableHead(this.cx,this.y-4,this));
       }
       // Down light: spawn smoke cloud on first active frame
       if(!uh&&ud==='down'&&!ua.bulletFired&&ua.frame===ua.su){
         ua.bulletFired=true;
+        playSfxNoise(0.2,0.2,100);
         smokeClouds.push(new SmokeCloud(this.cx,this.cy+this.h*0.3,this));
       }
       // Down heavy: self-damage + explosion on first active frame; atk.hit prevents repeat
       if(uh&&ud==='down'&&!ua.bulletFired&&ua.frame===ua.su){
         ua.bulletFired=true;
+        playSfxNoise(0.22,0.4,80);
+        playSfx({freq:120,freq2:40,type:'sawtooth',decay:0.25,vol:0.2});
         if(!this.isDummy){this.damage+=8;this.hitFlash=14;}
         addHitParticles(this.cx,this.cy,'#ff4400',true);
         shakeX+=(Math.random()-.5)*12; shakeY+=(Math.random()-.5)*12;
@@ -1215,6 +1220,8 @@ class Player {
       // Up heavy: launch self + spawn smoke cloud below on first active frame
       if(uh&&ud==='up'&&!ua.bulletFired&&ua.frame===ua.su){
         ua.bulletFired=true;
+        playSfxNoise(0.16,0.25,150);
+        playSfx({freq:180,freq2:80,type:'sawtooth',decay:0.2,vol:0.15});
         this.vy=this.ch.jumpF*1.5; this.onGnd=false; this.onPlat=false; this.jLeft=1;
         smokeClouds.push(new SmokeCloud(this.cx,this.bottom+30,this));
       }
@@ -1226,6 +1233,7 @@ class Player {
       const f=this.facing,bx=f>0?this.right:this.x,by=this.cy-this.h*0.15;
       if(!pa.bulletFired&&pa.frame===pa.su){
         pa.bulletFired=true;
+        playSfx({freq:ph?440:880,freq2:ph?220:440,type:'sine',decay:ph?0.3:0.14,vol:0.14});
         if(!ph){
           // Light attacks: laser beams
           const pDmg=Math.round(this.ch.lDmg*1.5);
@@ -1318,6 +1326,8 @@ class Player {
         // Down light: fire burst both sides on first active frame
         if(!mh&&md==='down'&&!ma.bulletFired&&ma.frame===ma.su){
           ma.bulletFired=true;
+          playSfxNoise(0.12,0.22,150);
+          playSfx({freq:200,freq2:80,type:'sawtooth',decay:0.12,vol:0.14});
           const bspd=14, range=220, by3=this.cy;
           const bl=new Bullet(this.cx,by3,-bspd,0,this,false);
           bl.dmg=this.ch.lDmg; bl.kb=this.ch.lKB; bl.maxDist=range;
@@ -1328,6 +1338,8 @@ class Player {
         // Side heavy: fire pebble on first active frame
         if(mh&&(md==='side'||md==='neutral')&&!ma.bulletFired&&ma.frame===ma.su){
           ma.bulletFired=true;
+          playSfxNoise(0.14,0.28,100);
+          playSfx({freq:160,freq2:60,type:'sawtooth',decay:0.18,vol:0.16});
           firePebbles.push(new FirePebble(bx2,by2,f*8,this));
         }
         // Down heavy: fire-jet launch (same as Blaster rocket jump)
@@ -1348,6 +1360,8 @@ class Player {
         // Down light: launch Bolt minion on first active frame
         if(!fh&&fd==='down'&&!fa.bulletFired&&fa.frame===fa.su){
           fa.bulletFired=true;
+          playSfx({freq:110,freq2:55,type:'sawtooth',decay:0.18,vol:0.18});
+          playSfxNoise(0.1,0.12,500);
           this.factoryBoltCD=this.ch.boltCDMax||300;
           const opp=opps&&opps.find(p=>!p.dead)||null;
           let bvx=f*4.5, bvy=-0.5;
@@ -1357,6 +1371,7 @@ class Player {
         // Up light: launch gear upward on first active frame
         if(!fh&&fd==='up'&&!fa.bulletFired&&fa.frame===fa.su){
           fa.bulletFired=true;
+          playSfx({freq:150,freq2:80,type:'sawtooth',decay:0.15,vol:0.17});
           factoryGears.push(new FactoryGear(this.cx,this.y-5,this));
         }
         // Side heavy: drill multi-hit every 10 frames during active
@@ -1381,6 +1396,8 @@ class Player {
         // Down heavy: spawn 3 Zaps + fire directional bullets on first active frame
         if(fh&&fd==='down'&&!fa.bulletFired&&fa.frame===fa.su){
           fa.bulletFired=true;
+          playSfx({freq:400,freq2:900,type:'square',decay:0.15,vol:0.16});
+          playSfxNoise(0.12,0.2,800);
           this.factoryZapCD=this.ch.zapCDMax||180;
           const opp=opps&&opps.find(p=>!p.dead)||null;
           for(const ox of [-50,0,50]){
@@ -1406,12 +1423,7 @@ class Player {
       if(this.glitchPhaseTimer>0) this.glitchPhaseTimer--;
       if(this.atk){
         const ga=this.atk, gd=ga.dir, gh=ga.type==='heavy', f=this.facing;
-        // Down light: activate phase on first active frame
-        if(!gh&&gd==='down'&&!ga.bulletFired&&ga.frame===ga.su){
-          ga.bulletFired=true;
-          this.glitchPhaseTimer=150;
-          this.hitImmune=150;
-        }
+        // Down light: arm teleport below (hitbox handled in hitbox())
         // Side heavy: Blaster 3-shot burst at su+0, su+3, su+6 using Blaster's actual values
         if(gh&&(gd==='side'||gd==='neutral')&&this.glitchWeapon==='blaster'){
           if(!ga.shotsF) ga.shotsF=0;
@@ -1449,6 +1461,8 @@ class Player {
         // Up heavy: teleport self upward on first active frame
         if(gh&&gd==='up'&&!ga.bulletFired&&ga.frame===ga.su){
           ga.bulletFired=true;
+          playSfx({freq:800,freq2:200,type:'square',decay:0.1,vol:0.16});
+          playSfxNoise(0.08,0.15,600);
           this.y=Math.max(10,this.y-200);
           this.vy=0; this.onGnd=false; this.onPlat=false;
           addHitParticles(this.cx,this.cy+100,this.ch.color,false);
@@ -1459,6 +1473,7 @@ class Player {
     if(this.atk&&this.ch.id===4&&this.atk.type==='heavy'){
       if(this.atk.dir==='up'&&!this.atk.bulletFired&&this.atk.frame===this.atk.su){
         this.atk.bulletFired=true;
+        playSfx({freq:500,freq2:180,type:'triangle',decay:0.16,vol:0.15});
         miniSwords.push(new MiniSword(this.cx-4,this.y-10,this));
       }
       if(this.atk.dir==='down'&&this.atk.frame>=this.atk.su&&this.atk.frame<this.atk.su+this.atk.act){
@@ -1469,13 +1484,13 @@ class Player {
     // Charge heavy (CRUSHER=1, ZIPPY=2, PIERCE=5)
     const canCharge=[1,2,5].includes(this.ch.id);
     if(canCharge&&inp.heavy&&!this.atk&&!this.charging&&this.atkCD===0&&free){
-      this.charging=true; this.chargeTime=0;
+      this.charging=true; this.chargeTime=0; this.chargeDir=this.atkDir(inp);
     }
     if(this.charging){
       this.chargeTime=Math.min(this.chargeTime+1,240);
       if(inp.heavyRelease){
         const cr=Math.min(1,this.chargeTime/240);
-        this.charging=false; this.startAtk('heavy',this.atkDir(inp),null,cr);
+        this.charging=false; this.startAtk('heavy',this.chargeDir,null,cr);
       }
     }
 
@@ -1490,10 +1505,10 @@ class Player {
       const ad=this.atkDir(inp);
       if(this.ch.id===6){
         // ROCKET: check arm availability per attack type
-        if(inp.light&&this.armsLeft>0&&this.rocketLightCD===0) this.startAtk('light',ad);
-        else if(inp.heavy&&ad==='up'&&this.armsLeft===4) this.startAtk('heavy','up');
-        else if(inp.heavy&&ad==='down'&&this.armsLeft>=2) this.startAtk('heavy','down');
-        else if(inp.heavy&&(ad==='side'||ad==='neutral')&&this.armsLeft>=2&&this.rocketSideHeavyCD===0) this.startAtk('heavy','side');
+        if(inp.light&&this.rocketLightCD===0) this.startAtk('light',ad);
+        else if(inp.heavy&&ad==='up') this.startAtk('heavy','up');
+        else if(inp.heavy&&ad==='down') this.startAtk('heavy','down');
+        else if(inp.heavy&&(ad==='side'||ad==='neutral')&&this.rocketSideHeavyCD===0) this.startAtk('heavy','side');
       } else if(this.ch.id===12){
         // FACTORY: block down attacks when on cooldown
         if(inp.light){if(!(ad==='down'&&this.factoryBoltCD>0))this.startAtk('light',ad);}
@@ -1532,7 +1547,7 @@ class Player {
           else{this.atk=null;this.comboPend=false;this.startAtk('light',dir,nxt);}
         } else {
           if(this.ch.id===6){
-            if(this.atk.type==='light') this.rocketLightCD=7;
+            if(this.atk.type==='light') this.rocketLightCD=4;
             if(this.atk.type==='heavy'&&(this.atk.dir==='side'||this.atk.dir==='neutral')) this.rocketSideHeavyCD=180;
           }
           this.atkCD=3;this.atk=null;this.comboPend=false;
@@ -1545,6 +1560,7 @@ class Player {
   }
 
   fireBullet(type,dir,shotNum=0){
+    playSfx({freq:type==='heavy'?600:900,freq2:type==='heavy'?150:200,type:'sawtooth',decay:0.1,vol:0.13});
     const heavy=type==='heavy', f=this.facing;
     const bx=f>0?this.right:this.x, by=this.cy-this.h*0.1;
     if(heavy&&dir!=='up'&&dir!=='down'){
@@ -1569,6 +1585,8 @@ class Player {
   }
 
   fireRocketAttack(type,dir){
+    playSfx({freq:dir==='down'?120:200,freq2:40,type:'sawtooth',decay:0.28,vol:0.2});
+    playSfxNoise(0.18,0.12,300);
     const f=this.facing, spd=8;
     const bx=this.cx, by=this.cy-this.h*0.1;
     if(type==='light'){
@@ -1658,7 +1676,7 @@ class Player {
     }
     // FACTORY direction-specific timing
     if(c.id===12){
-      if(type==='light'&&(dir==='side'||dir==='neutral')){su=5;act=8;el=12;}   // gear swing
+      if(type==='light'&&(dir==='side'||dir==='neutral')){su=20;act=32;el=48;}  // gear swing (slower)
       else if(type==='light'&&dir==='up'){su=4;act=6;el=10;}                   // gear throw up
       else if(type==='light'&&dir==='down'){su=8;act=4;el=16;}                 // bolt launch
       else if(type==='heavy'&&(dir==='side'||dir==='neutral')){su=12;act=60;el=24;} // drill spin 1s
@@ -1673,7 +1691,7 @@ class Player {
     if(c.id===13){
       if(type==='light'&&(dir==='side'||dir==='neutral')){su=3;act=18;el=8;}   // arm teleport linger
       else if(type==='light'&&dir==='up'){su=3;act=18;el=8;}                   // both arms up
-      else if(type==='light'&&dir==='down'){su=2;act=1;el=5;}                  // phase activation
+      else if(type==='light'&&dir==='down'){su=3;act=18;el=8;}                  // arm teleport below
       else if(type==='heavy'&&(dir==='side'||dir==='neutral')){
         const weapons=['edge','pierce','blaster'];
         this.glitchWeapon=weapons[Math.floor(Math.random()*3)];
@@ -1683,6 +1701,7 @@ class Player {
       else if(type==='heavy'&&dir==='up'){su=3;act=1;el=20;}                   // warp jump
     }
     this.atk={type,dir,frame:0,su,act,el,hit:false,comboN:cn,bulletFired:false,chargeRatio};
+    sfxSwing(this.ch.id,type,dir);
   }
 
   hitbox(){
@@ -1719,7 +1738,10 @@ class Player {
         // Both arms appear 150px above
         return{x:this.cx-30,y:this.cy-tar-12,w:60,h:24};
       }
-      if(!heavy&&a.dir==='down') return null; // phase: no hitbox
+      if(!heavy&&a.dir==='down'){
+        // Both arms appear 150px below
+        return{x:this.cx-30,y:this.cy+tar-12,w:60,h:24};
+      }
       if(heavy&&(a.dir==='side'||a.dir==='neutral')){
         // Depends on randomly chosen weapon
         const wep=this.glitchWeapon;
@@ -1847,6 +1869,7 @@ class Player {
     }
     if(target.shieldActive){
       addHitParticles(target.cx,target.cy,'#aaddff',false);
+      playSfx({freq:700,freq2:300,type:'sine',decay:0.1,vol:0.15});
       const lag=this.atk.type==='heavy'?5:3; target.hitlag=lag; this.hitlag=lag; return;
     }
     // 250% instant kill
@@ -1866,7 +1889,7 @@ class Player {
     if(this.ch.id===4&&!heavy&&this.atk.comboN){
       const cn=this.atk.comboN;
       dmg=Math.round(dmg*(cn===3?2.2:cn===2?1.3:1));
-      baseKB=baseKB*(cn===3?1.4:cn===2?1.1:1);
+      baseKB=baseKB*(cn===3?1.4:cn===2?0.275:1);
     }
     // PIERCE 3rd-hit spear swing scaling
     else if(this.ch.id===5&&!heavy&&this.atk.comboN===3){
@@ -1912,6 +1935,7 @@ class Player {
     target.onGnd=false;target.onPlat=false;
     const lag=heavy?6:4; target.hitlag=lag; this.hitlag=lag;
     const hb=this.hitbox(); if(hb)addHitParticles(hb.x+hb.w/2,hb.y+hb.h/2,this.ch.color,heavy);
+    sfxHit(heavy);
   }
 
   checkKill(){
@@ -1922,7 +1946,7 @@ class Player {
   doRespawn(){
     this.dead=false;this.x=this.spawnX-this.w/2;this.y=80;this.vx=this.vy=0;this.jLeft=2;this.onGnd=false;this.onPlat=false;
     if(this.ch.id===6){this.armsLeft=4;this.rocketLightCD=0;this.rocketSideHeavyCD=0;for(const a of rocketArms)if(a.owner===this)a.dead=true;for(const m of rocketMines)if(m.owner===this)m.dead=true;}
-    if(this.ch.id===10){this.flyActive=false;this.flyTimer=0;this.flyCooldown=0;this.laserShieldActive=false;this.laserShieldTimer=0;for(const r of pristineRockets)if(r.owner===this)r.dead=true;}
+    if(this.ch.id===10){this.flyActive=false;this.flyTimer=180;this.flyCooldown=0;this.laserShieldActive=false;this.laserShieldTimer=0;for(const r of pristineRockets)if(r.owner===this)r.dead=true;}
     if(this.ch.id===11){this.magmaFuel=this.ch.flameFuelMax||180;for(const fp of firePebbles)if(fp.owner===this)fp.dead=true;}
     if(this.ch.id===12){this.factoryBoltCD=0;this.factoryZapCD=0;for(const b of factoryBolts)if(b.owner===this)b.dead=true;for(const g of factoryGears)if(g.owner===this)g.dead=true;}
     if(this.ch.id===13){this.glitchPhaseTimer=0;this.glitchGhost=false;this.glitchWeapon=null;}
@@ -2043,19 +2067,13 @@ class Player {
       ctx.fillStyle=pct<0.25?'#ff2200':pct<0.6?'#ff6600':'#ff4400';
       ctx.fillRect(this.x,barY,this.w*pct,3);
     }
-    // PRISTINE: flight cooldown bar and fly timer bar
-    if(this.ch.id===10){
+    // PRISTINE: jetpack fuel bar (shows whenever fuel is not full)
+    if(this.ch.id===10&&this.flyTimer<180){
       const barY=this.bottom+(this.shieldCooldown>0?10:4);
-      if(this.flyCooldown>0){
-        const pct=1-this.flyCooldown/this.flyMaxCool;
-        ctx.fillStyle='#001122';ctx.fillRect(this.x,barY,this.w,3);
-        ctx.fillStyle='#00ffff';ctx.fillRect(this.x,barY,this.w*pct,3);
-      }
-      if(this.flyActive){
-        const pct=1-this.flyTimer/300;
-        ctx.fillStyle='rgba(0,30,30,0.6)';ctx.fillRect(this.x,this.y-10,this.w,4);
-        ctx.fillStyle='#00ffff';ctx.fillRect(this.x,this.y-10,this.w*pct,4);
-      }
+      const pct=this.flyTimer/180;
+      ctx.fillStyle='#001122';ctx.fillRect(this.x,barY,this.w,3);
+      ctx.fillStyle=this.flyActive?'#00ffff':pct<0.25?'#004455':'#007799';
+      ctx.fillRect(this.x,barY,this.w*pct,3);
     }
     // FACTORY: bolt and zap cooldown bars
     if(this.ch.id===12){
@@ -2426,7 +2444,7 @@ class FirePebble {
     this.x=x; this.y=y; this.vx=vx; this.vy=0;
     this.owner=owner; this.dead=false;
     this.ox=x; this.oy=y;
-    this.maxDist=300;
+    this.maxDist=75;
     this.dmg=4; this.kb=5;
     this.explodeDmg=16; this.explodeKB=14;
     this.explodeTimer=0;
@@ -3329,7 +3347,7 @@ function drawGlitch(ctx,ch,w,h,atk,grounded,wf,extra){
   }
 
   // Arms (attached, thin)
-  if(!inAct||(dir!=='side'&&dir!=='neutral'&&dir!=='up')||heavy){
+  if(!inAct||(dir!=='side'&&dir!=='neutral'&&dir!=='up'&&dir!=='down')||heavy){
     // Normal arms
     rrFill(bx-4,by2+h*0.38,8,h*0.26,4,ch.accent);       // left arm
     rrFill(bx+w-4,by2+h*0.38,8,h*0.26,4,ch.accent);      // right arm
@@ -3352,6 +3370,26 @@ function drawGlitch(ctx,ch,w,h,atk,grounded,wf,extra){
     ctx.strokeStyle=ch.eyeCol; ctx.lineWidth=2; ctx.globalAlpha=0.5+tAct*0.4;
     ctx.beginPath();ctx.arc(-12,-tar-2,14,0,Math.PI*2);ctx.stroke();
     ctx.beginPath();ctx.arc(12,-tar-2,14,0,Math.PI*2);ctx.stroke();
+    ctx.shadowBlur=0; ctx.restore();
+  } else if(dir==='down'&&!heavy){
+    // Down light: arm stubs only (arms are below)
+    rrFill(bx-4,by2+h*0.38,8,10,4,ch.accent);
+    rrFill(bx+w-4,by2+h*0.38,8,10,4,ch.accent);
+    // Teleported arms drawn in world space (detached, below)
+    const tar=ch.teleArmRange||150;
+    ctx.save();
+    ctx.shadowBlur=16; ctx.shadowColor=ch.eyeCol;
+    ctx.fillStyle=ch.accent;
+    // Left arm at +tar y
+    rrFill(-20,tar-12,16,28,4,ch.accent);
+    ctx.fillStyle=ch.eyeCol; ctx.fillRect(-16,tar-4,8,4);
+    // Right arm at +tar y
+    rrFill(4,tar-12,16,28,4,ch.accent);
+    ctx.fillStyle=ch.eyeCol; ctx.fillRect(8,tar-4,8,4);
+    // Portal effect at each arm
+    ctx.strokeStyle=ch.eyeCol; ctx.lineWidth=2; ctx.globalAlpha=0.5+tAct*0.4;
+    ctx.beginPath();ctx.arc(-12,tar+2,14,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(12,tar+2,14,0,Math.PI*2);ctx.stroke();
     ctx.shadowBlur=0; ctx.restore();
   } else if((dir==='side'||dir==='neutral')&&!heavy){
     // Side light: one arm stump (the active arm is teleported)
@@ -3827,6 +3865,7 @@ function drawBlade(ctx,ch,w,h,atk,grounded,wf){
   const dir=atk?atk.dir:null;
   const heavy=atk&&atk.type==='heavy';
   const tAct=atk&&inAct?(atk.frame-atk.su)/Math.max(atk.act,1):0;
+  const tSU=atk&&inSU?atk.frame/Math.max(atk.su,1):0;
   const half=atk?Math.floor(atk.act/2):0;
   const phase2=atk&&inAct&&atk.frame>=atk.su+half;
   const bob=grounded?Math.sin(wf*Math.PI/2)*2:0,swing=grounded?Math.sin(wf*Math.PI/2)*7:0,by2=by+bob;
@@ -3850,17 +3889,83 @@ function drawBlade(ctx,ch,w,h,atk,grounded,wf){
     ctx.shadowBlur=0;ctx.restore();
   };
   // Left arm + knife
-  const lkAng=inAct&&!heavy&&dir==='down'&&!phase2?-Math.PI*0.6:inAct&&!heavy&&dir==='down'&&phase2?-Math.PI*0.9:inAct&&!heavy&&dir==='up'?-Math.PI*0.65:0;
+  const isSideLight=!heavy&&(dir==='side'||dir==='neutral');
+  const lkAng=inAct&&!heavy&&dir==='down'?(-Math.PI*0.65+tAct*Math.PI*0.95):inAct&&!heavy&&dir==='up'?-Math.PI*0.65:inSU&&isSideLight?-Math.PI*0.45*tSU:inSU&&!heavy&&dir==='down'?-Math.PI*0.65*tSU:0;
   ctx.save();ctx.translate(bx+2,by2+h*0.4+swing*0.4);
+  if(inSU&&isSideLight){ctx.translate(-4*tSU,0);}
   rrFill(-13,0,13,h*0.25,4,ch.color);ctx.fillStyle=ch.accent;ctx.beginPath();ctx.arc(-6,h*0.25,7,0,Math.PI*2);ctx.fill();ctx.restore();
-  drawKnife(bx-4,by2+h*0.5+swing*0.4,lkAng,12,false);
+  drawKnife(bx-4,by2+h*0.5+swing*0.4,lkAng,inAct&&isSideLight?16:12,inAct&&isSideLight);
   // Right arm + knife (or combined sword for side heavy swing phase)
   const isSwing=heavy&&inAct&&(dir==='side'||dir==='neutral')&&!phase2;
   const isCombined=isSwing;
-  const rkAng=isSwing?(-Math.PI*0.15+tAct*Math.PI*1.1):inAct&&!heavy&&dir==='down'&&phase2?-Math.PI*0.3:inAct&&!heavy&&dir==='up'?-Math.PI*0.65:0;
+  const rkAng=isSwing?(-Math.PI*0.15+tAct*Math.PI*1.1):inAct&&!heavy&&dir==='down'&&phase2?-Math.PI*0.3+tAct*0.3:inAct&&!heavy&&dir==='up'?-Math.PI*0.65:isSideLight&&inSU?Math.PI*0.62*(1-tSU):isSideLight&&inAct?-Math.PI*0.12+tAct*Math.PI*0.22:inSU&&!heavy&&dir==='down'?-Math.PI*0.65*tSU:0;
+  const sideShift=isCombined?14:isSideLight&&inAct?8+tAct*22:isSideLight&&inSU?-10+tSU*10:0;
   ctx.save();ctx.translate(bx+w-2,by2+h*0.4-swing*0.4);
-  if(inAct&&(dir==='side'||dir==='neutral')){ctx.translate(isCombined?14:8,0);}
+  if((inAct||inSU)&&(dir==='side'||dir==='neutral')){ctx.translate(sideShift,inAct&&isSideLight?tAct*-4:0);}
   rrFill(0,0,13,h*0.25,4,ch.color);ctx.fillStyle=ch.accent;ctx.beginPath();ctx.arc(6,h*0.25,7,0,Math.PI*2);ctx.fill();ctx.restore();
+  // Side light slash arc trail
+  if(isSideLight&&inAct&&!isCombined){
+    ctx.save();ctx.lineCap='round';
+    // Main arc
+    ctx.shadowBlur=14;ctx.shadowColor=ch.eyeCol;ctx.strokeStyle=ch.eyeCol;
+    ctx.lineWidth=tAct<0.25?5:3.5;ctx.globalAlpha=0.75-tAct*0.65;
+    ctx.beginPath();ctx.arc(bx+w+12,by2+h*0.46,26,-0.72,0.58);ctx.stroke();
+    // Outer echo
+    ctx.lineWidth=1.5;ctx.globalAlpha=0.38-tAct*0.32;
+    ctx.beginPath();ctx.arc(bx+w+12,by2+h*0.46,35,-0.52,0.42);ctx.stroke();
+    // Speed lines radiating forward
+    ctx.shadowBlur=0;ctx.strokeStyle=ch.hi;ctx.lineWidth=1.5;
+    for(let i=0;i<4;i++){
+      const la=-0.3+i*0.27;
+      const rd=24+i*4;
+      ctx.globalAlpha=(0.55-i*0.1)*(1-tAct*0.85);
+      ctx.beginPath();
+      ctx.moveTo(bx+w+12+Math.cos(la)*rd,by2+h*0.46+Math.sin(la)*rd);
+      ctx.lineTo(bx+w+12+Math.cos(la)*(rd+13),by2+h*0.46+Math.sin(la)*(rd+13));
+      ctx.stroke();
+    }
+    ctx.shadowBlur=0;ctx.globalAlpha=1;ctx.restore();
+  }
+  // Down light startup: faint rising trail as arms cock upward
+  if(!heavy&&inSU&&dir==='down'&&tSU>0.15){
+    ctx.save();ctx.shadowBlur=8;ctx.shadowColor=ch.eyeCol;ctx.strokeStyle=ch.eyeCol;
+    ctx.lineWidth=2;ctx.lineCap='round';ctx.globalAlpha=0.28*tSU;
+    const preR=18,preY=by2+h*0.48;
+    ctx.beginPath();ctx.arc(bx+4,preY,preR,Math.PI*0.5,Math.PI*0.5-Math.PI*0.6*tSU,true);ctx.stroke();
+    ctx.beginPath();ctx.arc(bx+w-4,preY,preR,Math.PI*0.5,Math.PI*0.5+Math.PI*0.6*tSU,false);ctx.stroke();
+    ctx.shadowBlur=0;ctx.globalAlpha=1;ctx.restore();
+  }
+  // Down light sweep arcs (phase 1 and 2)
+  if(!heavy&&inAct&&dir==='down'){
+    const sweepR=28,sweepY=by2+h*0.5;
+    const alpha=0.65-tAct*0.12;
+    ctx.save();ctx.shadowBlur=16;ctx.shadowColor=ch.eyeCol;ctx.strokeStyle=ch.eyeCol;ctx.lineWidth=3.5;ctx.lineCap='round';
+    ctx.globalAlpha=alpha;
+    if(!phase2){
+      // Phase 1: broad outward-down sweep
+      ctx.beginPath();ctx.arc(bx+4,sweepY,sweepR,-Math.PI*0.05,-Math.PI*0.72,true);ctx.stroke();
+      ctx.beginPath();ctx.arc(bx+w-4,sweepY,sweepR,-Math.PI*0.95,-Math.PI*0.28,false);ctx.stroke();
+      // Outer echo
+      ctx.lineWidth=1.5;ctx.globalAlpha=alpha*0.32;
+      ctx.beginPath();ctx.arc(bx+4,sweepY,sweepR+9,-Math.PI*0.05,-Math.PI*0.65,true);ctx.stroke();
+      ctx.beginPath();ctx.arc(bx+w-4,sweepY,sweepR+9,-Math.PI*0.95,-Math.PI*0.35,false);ctx.stroke();
+    } else {
+      // Phase 2: crossing inward
+      ctx.lineWidth=3.5;ctx.globalAlpha=alpha;
+      ctx.beginPath();ctx.arc(bx+4,sweepY,sweepR,-Math.PI*0.72,-Math.PI*1.15,true);ctx.stroke();
+      ctx.beginPath();ctx.arc(bx+w-4,sweepY,sweepR,-Math.PI*0.28,Math.PI*0.15,false);ctx.stroke();
+      // Cross-point spark
+      ctx.lineWidth=2;ctx.shadowBlur=10;
+      const spx=bx+w/2,spy=sweepY+sweepR*0.52;
+      for(let i=0;i<6;i++){
+        const sa=i*Math.PI/3+tAct*1.8;
+        ctx.globalAlpha=alpha*(1-tAct)*0.85;
+        ctx.beginPath();ctx.moveTo(spx+Math.cos(sa)*3,spy+Math.sin(sa)*3);
+        ctx.lineTo(spx+Math.cos(sa)*11,spy+Math.sin(sa)*11);ctx.stroke();
+      }
+    }
+    ctx.shadowBlur=0;ctx.globalAlpha=1;ctx.restore();
+  }
   // Right knife or combined sword
   if(isCombined){
     // Combined sword visual
@@ -3871,10 +3976,10 @@ function drawBlade(ctx,ch,w,h,atk,grounded,wf){
     ctx.globalAlpha=1;ctx.fillStyle=ch.accent;ctx.fillRect(-10,-7,5,14);
     ctx.shadowBlur=0;ctx.restore();
   } else if(!phase2||dir!=='down'){
-    drawKnife(bx+w+4,by2+h*0.5-swing*0.4,rkAng,12,false);
+    drawKnife(bx+w+4,by2+h*0.5-swing*0.4,rkAng,isSideLight&&inAct?16:12,isSideLight&&inAct);
   } else {
-    // Phase 2 left arc: draw left-side knife sweeping
-    drawKnife(bx-8,by2+h*0.5,rkAng,12,false);
+    // Phase 2: right knife sweeps left-down across
+    drawKnife(bx-4,by2+h*0.52,rkAng,16,true);
   }
   // Head (helmet style)
   rrFill(bx+8,by2+h*0.04,w-16,h*0.32,8,ch.color);
@@ -4459,6 +4564,105 @@ function drawGear(x,y,r,c1,c2){
 
 // ---- Game State ----
 let carnivalAngle=0; // tracks ferris wheel rotation for THE CARNIVAL stage
+// ---- Audio ----
+let bgMusic=null;       // current HTMLAudioElement
+let bgMusicSrc='';      // src currently loaded
+
+function playStageMusic(st){
+  const m=st&&st.music;
+  if(!m){stopBgMusic();return;}
+  if(bgMusic&&bgMusicSrc===m.src) return; // already playing
+  stopBgMusic();
+  bgMusic=new Audio(m.src);
+  bgMusic.loop=true;
+  bgMusic.volume=m.volume??0.5;
+  bgMusicSrc=m.src;
+  bgMusic.play().catch(()=>{});
+}
+
+function stopBgMusic(){
+  if(bgMusic){bgMusic.pause();bgMusic.currentTime=0;bgMusic=null;bgMusicSrc='';}
+}
+
+// ---- SFX ----
+let _sfxCtx=null;
+function _ac(){if(!_sfxCtx)_sfxCtx=new(window.AudioContext||window.webkitAudioContext)();return _sfxCtx;}
+
+function playSfx({freq=440,freq2=null,type='square',decay=0.12,vol=0.18,attack=0.004}={}){
+  try{
+    const ac=_ac(),g=ac.createGain(),o=ac.createOscillator();
+    const f2=freq2??freq*0.5;
+    o.type=type;
+    o.frequency.setValueAtTime(freq,ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(f2,ac.currentTime+decay);
+    g.gain.setValueAtTime(0.001,ac.currentTime);
+    g.gain.linearRampToValueAtTime(vol,ac.currentTime+attack);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+decay);
+    o.connect(g);g.connect(ac.destination);
+    o.start();o.stop(ac.currentTime+decay+0.02);
+  }catch(e){}
+}
+
+function playSfxNoise(duration=0.08,vol=0.25,hipass=200){
+  try{
+    const ac=_ac(),buf=ac.createBuffer(1,Math.ceil(ac.sampleRate*duration),ac.sampleRate);
+    const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1);
+    const src=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();
+    f.type='highpass';f.frequency.value=hipass;
+    g.gain.setValueAtTime(vol,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+duration);
+    src.buffer=buf;src.connect(f);f.connect(g);g.connect(ac.destination);src.start();
+  }catch(e){}
+}
+
+function sfxSwing(charId,type,dir){
+  const h=type==='heavy';
+  switch(charId){
+    case 0: // BOLT — punchy electric zap
+      playSfx({freq:h?120:180,freq2:h?50:90,type:'square',decay:h?0.16:0.1,vol:0.16}); break;
+    case 1: // CRUSHER — deep grinding thud
+      playSfx({freq:h?60:80,freq2:h?25:40,type:'sawtooth',decay:h?0.28:0.18,vol:0.22}); break;
+    case 2: // ZIPPY — fast bright ping
+      playSfx({freq:h?400:700,freq2:h?100:180,type:'sine',decay:h?0.1:0.06,vol:0.15}); break;
+    case 3: // BLASTER — charge whine
+      playSfx({freq:h?200:300,freq2:h?900:700,type:'sawtooth',decay:h?0.2:0.12,vol:0.14}); break;
+    case 4: // EDGE — metallic swoosh
+      playSfx({freq:h?280:400,freq2:h?80:150,type:'triangle',decay:h?0.22:0.14,vol:0.17});
+      playSfxNoise(h?0.14:0.08,0.08,2000); break;
+    case 5: // PIERCE — high stab whistle
+      playSfx({freq:h?500:900,freq2:h?150:300,type:'sine',decay:h?0.18:0.1,vol:0.15}); break;
+    case 6: // ROCKET — ignite hiss
+      playSfx({freq:h?160:220,freq2:h?50:80,type:'sawtooth',decay:h?0.25:0.14,vol:0.16});
+      playSfxNoise(h?0.18:0.1,0.1,400); break;
+    case 7: // UNSTABLE — glitchy buzz
+      playSfx({freq:h?100:180,freq2:h?300:440,type:'square',decay:h?0.2:0.1,vol:0.18});
+      playSfx({freq:h?300:440,freq2:h?80:120,type:'square',decay:h?0.28:0.16,vol:0.1}); break;
+    case 8: // BLADE — knife flick
+      playSfx({freq:h?600:1100,freq2:h?200:320,type:'sine',decay:h?0.14:0.07,vol:0.14}); break;
+    case 10: // PRISTINE — elegant chime
+      playSfx({freq:h?440:700,freq2:h?220:440,type:'sine',decay:h?0.22:0.14,vol:0.13}); break;
+    case 11: // MAGMA — fire crackle
+      playSfxNoise(h?0.22:0.12,h?0.3:0.2,h?80:200); break;
+    case 12: // FACTORY — mechanical clunk
+      playSfx({freq:h?80:110,freq2:h?30:55,type:'sawtooth',decay:h?0.2:0.13,vol:0.2});
+      playSfxNoise(h?0.1:0.06,0.12,600); break;
+    case 13: // GLITCH — digital glitch chirp
+      playSfx({freq:h?200:600,freq2:h?800:100,type:'square',decay:h?0.15:0.08,vol:0.16});
+      if(!h)playSfx({freq:1200,freq2:80,type:'square',decay:0.05,vol:0.1}); break;
+    default: // fallback
+      playSfx({freq:h?200:300,freq2:h?80:150,type:'square',decay:0.1,vol:0.14});
+  }
+}
+
+function sfxHit(heavy){
+  if(heavy){
+    playSfxNoise(0.14,0.38,120);
+    playSfx({freq:90,freq2:35,type:'sine',decay:0.18,vol:0.22});
+  } else {
+    playSfxNoise(0.08,0.22,700);
+  }
+}
+
 let gameState='modeSelect';
 let selectStep=0,p1Sel=0,p2Sel=1,stageSel=0,p1Confirmed=false;
 let charScrollY=0;
@@ -4881,6 +5085,7 @@ function updateGame(){
 }
 
 function resetMenu(){
+  stopBgMusic();
   gameState='modeSelect';selectStep=0;p1Sel=0;p2Sel=1;stageSel=0;p1Confirmed=false;charScrollY=0;stageScrollY=0;
   confirmedChars={};
   if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}rtcConn=null;netConnected=false;networkMode='none';isHost=false;
@@ -4896,6 +5101,7 @@ function loop(){
   else if(gameState==='charSelect') drawCharSelect();
   else if(gameState==='stageSelect') drawStageSelect();
   else if(gameState==='game'){
+    playStageMusic(curStage);
     updateGame();
     ctx.save();ctx.translate(shakeX,shakeY);
     ctx.translate(W/2,H/2);ctx.scale(0.692,0.9);ctx.translate(-W/2,-H/2);

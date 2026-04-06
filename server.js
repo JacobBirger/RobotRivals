@@ -13,14 +13,20 @@ const server = http.createServer((req, res) => {
     filePath = path.join(__dirname, 'index.html');
   } else if (req.url === '/controller') {
     filePath = path.join(__dirname, 'controller.html');
+  } else if (req.url.startsWith('/soundtrack/') || req.url.startsWith('/soundeffects/')) {
+    filePath = path.join(__dirname, req.url);
   } else {
     res.writeHead(404); res.end('Not found'); return;
   }
   const ext = path.extname(filePath);
-  const mime = ext === '.html' ? 'text/html' : 'application/octet-stream';
+  const mime = ext === '.html' ? 'text/html'
+    : ext === '.mp3' ? 'audio/mpeg'
+    : ext === '.ogg' ? 'audio/ogg'
+    : ext === '.wav' ? 'audio/wav'
+    : 'application/octet-stream';
   fs.readFile(filePath, (err, data) => {
-    if (err) { res.writeHead(500); res.end('Error'); return; }
-    res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8' });
+    if (err) { res.writeHead(404); res.end('Not found'); return; }
+    res.writeHead(200, { 'Content-Type': mime });
     res.end(data);
   });
 });
@@ -28,22 +34,26 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server });
 
 let gameClient = null;
-const controllers = new Set();
+let controllerCount = 0;
 
 wss.on('connection', (ws) => {
+  // Assign player slot on connect: first controller = P1, second = P2
+  controllerCount++;
+  const assignedPlayer = controllerCount === 1 ? 1 : 2;
+  ws.send(JSON.stringify({ type: 'welcome', player: assignedPlayer }));
+
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw);
       if (msg.type === 'register') {
         if (msg.role === 'game') {
           gameClient = ws;
+          controllerCount = 0; // reset so next controllers get P1/P2 again
           console.log('Game connected');
         } else if (msg.role === 'controller') {
-          controllers.add(ws);
-          console.log(`Controller connected (P${msg.player || 1})`);
+          console.log(`Controller registered (P${msg.player || 1})`);
         }
       } else if (msg.type === 'input') {
-        // Relay controller input to game
         if (gameClient && gameClient.readyState === 1) {
           gameClient.send(raw.toString());
         }
@@ -52,7 +62,7 @@ wss.on('connection', (ws) => {
   });
   ws.on('close', () => {
     if (ws === gameClient) { gameClient = null; console.log('Game disconnected'); }
-    controllers.delete(ws);
+    else { controllerCount = Math.max(0, controllerCount - 1); }
   });
 });
 
