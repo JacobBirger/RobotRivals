@@ -988,7 +988,7 @@ class Player {
     // Charge heavy
     this.charging=false; this.chargeTime=0; this.chargeDir='side';
     // ROCKET arm ammo + cooldowns
-    this.armsLeft=4; this.rocketLightCD=0; this.rocketSideHeavyCD=0;
+    this.armsLeft=4; this.rocketLightCD=0; this.rocketSideHeavyCD=0; this.rocketUpHeavyCD=0;
     // Status effects
     this.burnTimer=0; this.burnTick=0; this.hitImmune=0;
     // PRISTINE flight
@@ -1009,17 +1009,19 @@ class Player {
 
   atkDir(inp) {
     if(this.localInputSlot===1){
-      if(keys['KeyW']||keys['_gp1U']||keys['_ph1U'])   return 'up';
-      if(keys['KeyS']||keys['_gp1D']||keys['_ph1D'])   return 'down';
-      if(keys['KeyA']||keys['KeyD']||keys['_gp1L']||keys['_gp1R']||keys['_ph1L']||keys['_ph1R']) return 'side';
+      const phSide1=keys['_ph1L']||keys['_ph1R'];
+      if(keys['KeyW']||keys['_gp1U']||(keys['_ph1U']&&!phSide1))   return 'up';
+      if(keys['KeyS']||keys['_gp1D']||(keys['_ph1D']&&!phSide1))   return 'down';
+      if(keys['KeyA']||keys['KeyD']||keys['_gp1L']||keys['_gp1R']||phSide1) return 'side';
     } else if(this.localInputSlot===2){
-      if(keys['ArrowUp']||keys['_gp2U']||keys['_ph2U'])    return 'up';
-      if(keys['ArrowDown']||keys['_gp2D']||keys['_ph2D'])  return 'down';
-      if(keys['ArrowLeft']||keys['ArrowRight']||keys['_gp2L']||keys['_gp2R']||keys['_ph2L']||keys['_ph2R']) return 'side';
+      const phSide2=keys['_ph2L']||keys['_ph2R'];
+      if(keys['ArrowUp']||keys['_gp2U']||(keys['_ph2U']&&!phSide2))    return 'up';
+      if(keys['ArrowDown']||keys['_gp2D']||(keys['_ph2D']&&!phSide2))  return 'down';
+      if(keys['ArrowLeft']||keys['ArrowRight']||keys['_gp2L']||keys['_gp2R']||phSide2) return 'side';
     } else if(inp){
       // Remote player — derive from network input
-      if(inp.up)   return 'up';
-      if(inp.down) return 'down';
+      if(inp.up&&!inp.left&&!inp.right)   return 'up';
+      if(inp.down&&!inp.left&&!inp.right) return 'down';
       if(inp.left||inp.right) return 'side';
     }
     return 'neutral';
@@ -1323,17 +1325,17 @@ class Player {
             }
           }
         }
-        // Down light: fire burst both sides on first active frame
+        // Down light: fire linger fireballs both sides on first active frame
         if(!mh&&md==='down'&&!ma.bulletFired&&ma.frame===ma.su){
           ma.bulletFired=true;
           playSfxNoise(0.12,0.22,150);
           playSfx({freq:200,freq2:80,type:'sawtooth',decay:0.12,vol:0.14});
-          const bspd=14, range=220, by3=this.cy;
-          const bl=new Bullet(this.cx,by3,-bspd,0,this,false);
-          bl.dmg=this.ch.lDmg; bl.kb=this.ch.lKB; bl.maxDist=range;
-          const br=new Bullet(this.cx,by3,bspd,0,this,false);
-          br.dmg=this.ch.lDmg; br.kb=this.ch.lKB; br.maxDist=range;
-          bullets.push(bl,br);
+          const bspd=14, by3=this.cy;
+          const fl=new FirePebble(this.cx,by3,-bspd,this,true);
+          fl.maxDist=220; fl.dmg=this.ch.lDmg; fl.kb=this.ch.lKB;
+          const fr=new FirePebble(this.cx,by3,bspd,this,true);
+          fr.maxDist=220; fr.dmg=this.ch.lDmg; fr.kb=this.ch.lKB;
+          firePebbles.push(fl,fr);
         }
         // Side heavy: fire pebble on first active frame
         if(mh&&(md==='side'||md==='neutral')&&!ma.bulletFired&&ma.frame===ma.su){
@@ -1417,6 +1419,7 @@ class Player {
     if(this.ch.id===6){
       if(this.rocketLightCD>0) this.rocketLightCD--;
       if(this.rocketSideHeavyCD>0) this.rocketSideHeavyCD--;
+      if(this.rocketUpHeavyCD>0) this.rocketUpHeavyCD--;
     }
     // GLITCH special mechanics
     if(this.ch.id===13){
@@ -1506,7 +1509,7 @@ class Player {
       if(this.ch.id===6){
         // ROCKET: check arm availability per attack type
         if(inp.light&&this.rocketLightCD===0) this.startAtk('light',ad);
-        else if(inp.heavy&&ad==='up') this.startAtk('heavy','up');
+        else if(inp.heavy&&ad==='up'&&this.rocketUpHeavyCD===0) this.startAtk('heavy','up');
         else if(inp.heavy&&ad==='down') this.startAtk('heavy','down');
         else if(inp.heavy&&(ad==='side'||ad==='neutral')&&this.rocketSideHeavyCD===0) this.startAtk('heavy','side');
       } else if(this.ch.id===12){
@@ -1549,6 +1552,7 @@ class Player {
           if(this.ch.id===6){
             if(this.atk.type==='light') this.rocketLightCD=4;
             if(this.atk.type==='heavy'&&(this.atk.dir==='side'||this.atk.dir==='neutral')) this.rocketSideHeavyCD=180;
+            if(this.atk.type==='heavy'&&this.atk.dir==='up') this.rocketUpHeavyCD=210;
           }
           this.atkCD=3;this.atk=null;this.comboPend=false;
         }
@@ -1647,10 +1651,10 @@ class Player {
     }
     // ROCKET direction-specific timing
     if(c.id===6){
-      if(type==='light'){su=3;act=6;el=12;}
+      if(type==='light'){su=2;act=5;el=8;}
       else if(dir==='down'){su=10;act=6;el=18;}
       else if(dir==='up'){su=10;act=8;el=22;}
-      else{su=8;act=8;el=136;} // side heavy
+      else{su=8;act=8;el=20;} // side heavy
     }
     // PRISTINE direction-specific timing
     if(c.id===10){
@@ -1945,7 +1949,7 @@ class Player {
   die(){this.stocks--;if(this.stocks<0)this.stocks=0;this.dead=true;this.damage=0;this.vx=this.vy=this.hstun=this.hitlag=0;this.atk=null;this.shieldActive=false;this.respawnT=150;}
   doRespawn(){
     this.dead=false;this.x=this.spawnX-this.w/2;this.y=80;this.vx=this.vy=0;this.jLeft=2;this.onGnd=false;this.onPlat=false;
-    if(this.ch.id===6){this.armsLeft=4;this.rocketLightCD=0;this.rocketSideHeavyCD=0;for(const a of rocketArms)if(a.owner===this)a.dead=true;for(const m of rocketMines)if(m.owner===this)m.dead=true;}
+    if(this.ch.id===6){this.armsLeft=4;this.rocketLightCD=0;this.rocketSideHeavyCD=0;this.rocketUpHeavyCD=0;for(const a of rocketArms)if(a.owner===this)a.dead=true;for(const m of rocketMines)if(m.owner===this)m.dead=true;}
     if(this.ch.id===10){this.flyActive=false;this.flyTimer=180;this.flyCooldown=0;this.laserShieldActive=false;this.laserShieldTimer=0;for(const r of pristineRockets)if(r.owner===this)r.dead=true;}
     if(this.ch.id===11){this.magmaFuel=this.ch.flameFuelMax||180;for(const fp of firePebbles)if(fp.owner===this)fp.dead=true;}
     if(this.ch.id===12){this.factoryBoltCD=0;this.factoryZapCD=0;for(const b of factoryBolts)if(b.owner===this)b.dead=true;for(const g of factoryGears)if(g.owner===this)g.dead=true;}
@@ -2440,7 +2444,7 @@ class FactoryZap {
 const knives=[], throwSwords=[];
 const firePebbles=[];
 class FirePebble {
-  constructor(x,y,vx,owner){
+  constructor(x,y,vx,owner,linger=false){
     this.x=x; this.y=y; this.vx=vx; this.vy=0;
     this.owner=owner; this.dead=false;
     this.ox=x; this.oy=y;
@@ -2448,13 +2452,33 @@ class FirePebble {
     this.dmg=4; this.kb=5;
     this.explodeDmg=16; this.explodeKB=14;
     this.explodeTimer=0;
+    this.linger=linger;       // if true: after hitting, stick to target and deal 2 burn ticks
+    this.lingerTicks=0;       // remaining linger ticks (counts down)
+    this.lingerTickTimer=0;   // frames until next tick
+    this.lingerTarget=null;
   }
   get dist(){return Math.hypot(this.x-this.ox,this.y-this.oy);}
   update(players){
     if(this.dead)return;
+    // Linger burn ticks after initial hit
+    if(this.lingerTicks>0){
+      this.lingerTickTimer--;
+      if(this.lingerTickTimer<=0){
+        const p=this.lingerTarget;
+        if(p&&!p.dead){
+          if(p.damage>=250&&!p.isDummy){instakill(p,p.cx,p.cy);this.dead=true;return;}
+          p.damage+=Math.round(this.dmg*(p.ch.def??1)); p.hitFlash=8;
+          addHitParticles(p.cx,p.cy,'#ff4400',false);
+        }
+        this.lingerTicks--;
+        if(this.lingerTicks>0) this.lingerTickTimer=30;
+        else this.dead=true;
+      }
+      return;
+    }
     if(this.explodeTimer>0){this.explodeTimer--;if(this.explodeTimer<=0)this.dead=true;return;}
     this.x+=this.vx;
-    if(this.dist>=this.maxDist){this.explode(players);return;}
+    if(this.dist>=this.maxDist){if(this.linger){this.dead=true;return;}this.explode(players);return;}
     if(this.x<-80||this.x>W+80||this.y<-80||this.y>H+80){this.dead=true;return;}
     for(const p of players){
       if(p===this.owner||sameTeam(p,this.owner)||p.dead)continue;
@@ -2481,7 +2505,14 @@ class FirePebble {
         p.hstun=Math.min(28,Math.floor(4+kb*1.2)); p.onGnd=false; p.onPlat=false;
         p.hitlag=3; this.owner.hitlag=0;
         addHitParticles(this.x,this.y,'#ff4400',false);
-        this.dead=true; return;
+        if(this.linger){
+          // Stay and burn for 2 more ticks
+          this.vx=0; this.vy=0;
+          this.lingerTicks=2; this.lingerTickTimer=30; this.lingerTarget=p;
+        } else {
+          this.dead=true;
+        }
+        return;
       }
     }
   }
