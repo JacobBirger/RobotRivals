@@ -7,33 +7,10 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: monospace; overflow: hidden; }
     canvas { display: block; cursor: crosshair; width: min(100vw, calc(100vh * 1000 / 600)); height: min(100vh, calc(100vw * 600 / 1000)); image-rendering: pixelated; }
-    #netUI { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-      background: #111; border: 2px solid #444; padding: 24px; color: #fff;
-      font-family: monospace; display: none; z-index: 10; min-width: 460px; }
-    #netUI h2 { margin-bottom: 12px; }
-    #netUI textarea { width: 100%; height: 80px; background: #222; color: #0f0;
-      border: 1px solid #444; font-family: monospace; font-size: 11px; resize: none; }
-    #netUI input { width: 100%; padding: 6px; background: #222; color: #fff;
-      border: 1px solid #555; font-family: monospace; font-size: 14px; margin: 6px 0; }
-    #netUI button { padding: 8px 20px; background: #334; color: #fff; border: 1px solid #558;
-      cursor: pointer; font-family: monospace; margin: 4px 4px 0 0; }
-    #netUI button:hover { background: #446; }
-    #netUI p { margin: 6px 0; font-size: 12px; color: #aaa; }
   </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="netUI">
-  <h2 id="netTitle">Network</h2>
-  <p id="netMsg"></p>
-  <textarea id="netCode" readonly></textarea>
-  <input id="netInput" placeholder="Paste code here" style="display:none"/>
-  <br>
-  <button id="netCopy" style="display:none">Copy Code</button>
-  <button id="netSubmit" style="display:none">Connect</button>
-  <button id="netCancel">Cancel</button>
-</div>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -42,12 +19,14 @@ canvas.width = W; canvas.height = H;
 
 // ---- Input ----
 const keys = {};
-let p1JumpPend=false, p2JumpPend=false;
+let p1JumpPend=false, p2JumpPend=false, p3JumpPend=false, p4JumpPend=false;
 let p1LightPend=false, p1HeavyPend=false;
 let p2LightPend=false, p2HeavyPend=false;
-let p1ShieldPend=false, p2ShieldPend=false;
-let p1DashPend=false,   p2DashPend=false;
-let p1HeavyRelease=false, p2HeavyRelease=false;
+let p3LightPend=false, p3HeavyPend=false;
+let p4LightPend=false, p4HeavyPend=false;
+let p1ShieldPend=false, p2ShieldPend=false, p3ShieldPend=false, p4ShieldPend=false;
+let p1DashPend=false,   p2DashPend=false,   p3DashPend=false,   p4DashPend=false;
+let p1HeavyRelease=false, p2HeavyRelease=false, p3HeavyRelease=false, p4HeavyRelease=false;
 let mouseRight=false, mouseLeft=false;
 let modeSelIdx=0;
 const gpPrev=[{},{}];
@@ -115,6 +94,18 @@ function getP2Input() {
            lightHeld:keys['BracketLeft']||keys['_gp2Lt']||keys['_ph2Lt'],
            jumpHeld:keys['ArrowUp']||keys['_gp2JH']||keys['_ph2JH'] };
 }
+function getP3Input() {
+  return { left:keys['_ph3L'],right:keys['_ph3R'],down:keys['_ph3D'],up:keys['_ph3U'],
+           jump:p3JumpPend,light:p3LightPend,heavy:p3HeavyPend,shield:p3ShieldPend,
+           dash:p3DashPend,heavyHeld:keys['_ph3Hvy'],heavyRelease:p3HeavyRelease,
+           lightHeld:keys['_ph3Lt'],jumpHeld:keys['_ph3JH'] };
+}
+function getP4Input() {
+  return { left:keys['_ph4L'],right:keys['_ph4R'],down:keys['_ph4D'],up:keys['_ph4U'],
+           jump:p4JumpPend,light:p4LightPend,heavy:p4HeavyPend,shield:p4ShieldPend,
+           dash:p4DashPend,heavyHeld:keys['_ph4Hvy'],heavyRelease:p4HeavyRelease,
+           lightHeld:keys['_ph4Lt'],jumpHeld:keys['_ph4JH'] };
+}
 function dummyInput() { return {left:false,right:false,down:false,up:false,jump:false,light:false,heavy:false,shield:false,dash:false,heavyHeld:false,heavyRelease:false,lightHeld:false}; }
 
 // ---- Gamepad ----
@@ -152,9 +143,9 @@ function pollGamepads(){
     }
     // Menu navigation
     if(gameState==='modeSelect'){
-      if(eU)modeSelIdx=(modeSelIdx+3)%4;
-      if(eD)modeSelIdx=(modeSelIdx+1)%4;
-      if(edge(0)||edge(9)){const codes=['KeyL','KeyT','KeyH','KeyG'];menuModeKey(codes[modeSelIdx]);}
+      if(eU)modeSelIdx=(modeSelIdx+2)%3;
+      if(eD)modeSelIdx=(modeSelIdx+1)%3;
+      if(edge(0)||edge(9)){const codes=['KeyL','Key4','KeyT'];menuModeKey(codes[modeSelIdx]);}
     }else if(gameState==='charSelect'){
       const kL=gi===0?'KeyA':'ArrowLeft',kR=gi===0?'KeyD':'ArrowRight';
       const kU=gi===0?'KeyW':'ArrowUp',kD=gi===0?'KeyS':'ArrowDown';
@@ -173,7 +164,7 @@ function pollGamepads(){
 }
 
 // ---- Phone Controller (WebSocket) ----
-const phonePrev=[{},{}];
+const phonePrev=[{},{},{},{}];
 let phoneWS=null;
 function initPhoneController(){
   if(location.protocol==='file:')return; // only works when served
@@ -199,7 +190,7 @@ function initPhoneController(){
         if(edge('shield')&&gameState==='game')p1ShieldPend=true;
         if(edge('dash')&&gameState==='game')p1DashPend=true;
         if(rel('heavy')&&gameState==='game')p1HeavyRelease=true;
-      }else{
+      }else if(pi===1){
         keys['_ph2L']=msg.left;keys['_ph2R']=msg.right;keys['_ph2U']=msg.up;keys['_ph2D']=msg.down;
         keys['_ph2Hvy']=msg.heavy;keys['_ph2Lt']=msg.light;keys['_ph2JH']=msg.jump;
         if(edge('jump'))p2JumpPend=true;
@@ -208,22 +199,51 @@ function initPhoneController(){
         if(edge('shield')&&gameState==='game')p2ShieldPend=true;
         if(edge('dash')&&gameState==='game')p2DashPend=true;
         if(rel('heavy')&&gameState==='game')p2HeavyRelease=true;
+      }else if(pi===2){
+        keys['_ph3L']=msg.left;keys['_ph3R']=msg.right;keys['_ph3U']=msg.up;keys['_ph3D']=msg.down;
+        keys['_ph3Hvy']=msg.heavy;keys['_ph3Lt']=msg.light;keys['_ph3JH']=msg.jump;
+        if(edge('jump'))p3JumpPend=true;
+        if(edge('light'))p3LightPend=true;
+        if(edge('heavy'))p3HeavyPend=true;
+        if(edge('shield')&&gameState==='game')p3ShieldPend=true;
+        if(edge('dash')&&gameState==='game')p3DashPend=true;
+        if(rel('heavy')&&gameState==='game')p3HeavyRelease=true;
+      }else if(pi===3){
+        keys['_ph4L']=msg.left;keys['_ph4R']=msg.right;keys['_ph4U']=msg.up;keys['_ph4D']=msg.down;
+        keys['_ph4Hvy']=msg.heavy;keys['_ph4Lt']=msg.light;keys['_ph4JH']=msg.jump;
+        if(edge('jump'))p4JumpPend=true;
+        if(edge('light'))p4LightPend=true;
+        if(edge('heavy'))p4HeavyPend=true;
+        if(edge('shield')&&gameState==='game')p4ShieldPend=true;
+        if(edge('dash')&&gameState==='game')p4DashPend=true;
+        if(rel('heavy')&&gameState==='game')p4HeavyRelease=true;
       }
       // Menu navigation from phone
       if(gameState==='modeSelect'){
-        if(edge('up'))modeSelIdx=(modeSelIdx+3)%4;
-        if(edge('down'))modeSelIdx=(modeSelIdx+1)%4;
-        if(edge('jump')||edge('light')){const codes=['KeyL','KeyT','KeyH','KeyG'];menuModeKey(codes[modeSelIdx]);}
+        if(edge('up'))modeSelIdx=(modeSelIdx+2)%3;
+        if(edge('down'))modeSelIdx=(modeSelIdx+1)%3;
+        if(edge('jump')||edge('light')){const codes=['KeyL','Key4','KeyT'];menuModeKey(codes[modeSelIdx]);}
       }else if(gameState==='charSelect'){
-        const kL=pi===0?'KeyA':'ArrowLeft',kR=pi===0?'KeyD':'ArrowRight';
-        const kU=pi===0?'KeyW':'ArrowUp',kD=pi===0?'KeyS':'ArrowDown';
-        if(edge('left'))menuCharKey(kL);if(edge('right'))menuCharKey(kR);
-        if(edge('up'))menuCharKey(kU);if(edge('down'))menuCharKey(kD);
-        if(edge('jump')||edge('light'))menuCharKey(pi===0?'Space':'Enter');
+        // In team4 mode each phone selects for their own player slot
+        if(networkMode==='team4'){
+          if(edge('left'))menuCharKey({pi,dir:'left'});
+          if(edge('right'))menuCharKey({pi,dir:'right'});
+          if(edge('up'))menuCharKey({pi,dir:'up'});
+          if(edge('down'))menuCharKey({pi,dir:'down'});
+          if(edge('jump')||edge('light'))menuCharKey({pi,dir:'confirm'});
+        } else {
+          const kL=pi===0?'KeyA':'ArrowLeft',kR=pi===0?'KeyD':'ArrowRight';
+          const kU=pi===0?'KeyW':'ArrowUp',kD=pi===0?'KeyS':'ArrowDown';
+          if(edge('left'))menuCharKey(kL);if(edge('right'))menuCharKey(kR);
+          if(edge('up'))menuCharKey(kU);if(edge('down'))menuCharKey(kD);
+          if(edge('jump')||edge('light'))menuCharKey(pi===0?'Space':'Enter');
+        }
       }else if(gameState==='stageSelect'){
-        if(edge('left'))menuStageKey('KeyA');if(edge('right'))menuStageKey('KeyD');
-        if(edge('up'))menuStageKey('KeyW');if(edge('down'))menuStageKey('KeyS');
-        if(edge('jump')||edge('light'))menuStageKey('Space');
+        if(pi===0){
+          if(edge('left'))menuStageKey('KeyA');if(edge('right'))menuStageKey('KeyD');
+          if(edge('up'))menuStageKey('KeyW');if(edge('down'))menuStageKey('KeyS');
+          if(edge('jump')||edge('light'))menuStageKey('Space');
+        }
       }else if(gameState==='gameOver'){
         if(edge('jump')||edge('light'))resetMenu();
       }
@@ -234,178 +254,15 @@ function initPhoneController(){
 }
 initPhoneController();
 
-// ---- Network ----
-const PEER_CFG={config:{iceServers:[
-  {urls:'stun:stun.l.google.com:19302'},
-  {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun.cloudflare.com:3478'},
-  {urls:'turn:openrelay.metered.ca:80',  username:'openrelayproject',credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:443', username:'openrelayproject',credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
-  {urls:'turns:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-]}};
-let networkMode='none', isHost=false;
-let rtcPeer=null, rtcConn=null, netConnected=false, myPeerCode='';
-let netRaw={left:false,right:false,down:false,up:false,heavyHeld:false};
-let netJumpPend=false,netLightPend=false,netHeavyPend=false,netShieldPend=false;
-let netDashPend=false,netHeavyRelease=false;
+let networkMode='none';
 let confirmedChars={}; // pn → char index
 
 function defaultInput(){return{left:false,right:false,down:false,up:false,jump:false,light:false,heavy:false,shield:false,dash:false,heavyHeld:false,heavyRelease:false,lightHeld:false,jumpHeld:false};}
-function serializePlayer(p){return{x:p.x,y:p.y,vx:p.vx,vy:p.vy,dmg:p.damage,st:p.stocks,fa:p.facing,hst:p.hstun,hf:p.hitFlash,onG:p.onGnd,onPl:p.onPlat,sA:p.shieldActive,sc:p.shieldCooldown,dA:p.dashActive,dead:p.dead,jl:p.jLeft,rt:p.respawnT,chg:p.charging,chgT:p.chargeTime,flyA:p.flyActive,flyT:p.flyTimer,flyC:p.flyCooldown,flyCM:p.flyMaxCool,lsA:p.laserShieldActive,lsT:p.laserShieldTimer,mf:p.magmaFuel,fbC:p.factoryBoltCD,fzC:p.factoryZapCD,gpt:p.glitchPhaseTimer,gg:p.glitchGhost?1:0,gw:p.glitchWeapon,atk:p.atk?{tp:p.atk.type,di:p.atk.dir,fr:p.atk.frame,su:p.atk.su,act:p.atk.act,el:p.atk.el,cn:p.atk.comboN,cr:p.atk.chargeRatio}:null};}
-function applyPlayerSt(p,s){p.x=s.x;p.y=s.y;p.vx=s.vx;p.vy=s.vy;p.damage=s.dmg;p.stocks=s.st;p.facing=s.fa;p.hstun=s.hst;p.hitFlash=s.hf;p.onGnd=s.onG;p.onPlat=s.onPl;p.shieldActive=s.sA;p.shieldCooldown=s.sc;p.dashActive=s.dA;p.dead=s.dead;p.jLeft=s.jl;p.respawnT=s.rt||0;p.charging=s.chg||false;p.chargeTime=s.chgT||0;p.flyActive=s.flyA||false;p.flyTimer=s.flyT||0;p.flyCooldown=s.flyC||0;p.flyMaxCool=s.flyCM||180;p.laserShieldActive=s.lsA||false;p.laserShieldTimer=s.lsT||0;if(s.mf!=null)p.magmaFuel=s.mf;if(s.fbC!=null)p.factoryBoltCD=s.fbC;if(s.fzC!=null)p.factoryZapCD=s.fzC;if(s.gpt!=null)p.glitchPhaseTimer=s.gpt;if(s.gg!=null)p.glitchGhost=!!s.gg;if(s.gw!=null)p.glitchWeapon=s.gw;if(s.atk){if(!p.atk||p.atk.type!==s.atk.tp||p.atk.dir!==s.atk.di){p.atk={type:s.atk.tp,dir:s.atk.di,frame:s.atk.fr,su:s.atk.su,act:s.atk.act,el:s.atk.el,hit:false,comboN:s.atk.cn,bulletFired:true,chargeRatio:s.atk.cr||0};}else{p.atk.frame=s.atk.fr;}}else{p.atk=null;}}
-function buildStateMsg1v1(){return{t:'state',ps:players.map(serializePlayer),bs:bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,oi:players.indexOf(b.owner),hv:b.heavy?1:0,w:b.wide?1:0,dmg:b.dmg,kb:b.kb,md:b.maxDist,ox:b.ox,oy:b.oy})),prs:pristineRockets.map(r=>({x:r.x,y:r.y,vx:r.vx,vy:r.vy,oi:players.indexOf(r.owner),ti:r.timer}))};}
-function applyStateMsg1v1(data){
-  // P1 is entirely driven by host — apply full state
-  applyPlayerSt(players[0],data.ps[0]);
-  // P2 runs locally on the guest for immediate input response.
-  // Only sync combat results so the host's damage/knockback/death are authoritative.
-  const s2=data.ps[1],p2=players[1];
-  p2.damage=s2.dmg;p2.stocks=s2.st;p2.hitFlash=s2.hf;
-  if(s2.hst>p2.hstun){p2.hstun=s2.hst;p2.vx=s2.vx;p2.vy=s2.vy;}
-  p2.dead=s2.dead;if(s2.dead)p2.respawnT=s2.rt||0;
-  // Bullets and PRISTINE rockets are still authoritative from host
-  bullets.length=0;for(const b of data.bs){const ow=players[b.oi]||players[0];const nb=new Bullet(b.ox,b.oy,b.vx,b.vy,ow,b.hv===1);nb.x=b.x;nb.y=b.y;nb.dmg=b.dmg;nb.kb=b.kb;nb.maxDist=b.md;nb.wide=b.w===1;bullets.push(nb);}
-  pristineRockets.length=0;for(const r of data.prs){const ow=players[r.oi]||players[0];const nr=new PristineRocket(r.x,r.y,r.vx,r.vy,ow);nr.timer=r.ti;pristineRockets.push(nr);}
-}
-function applyNetMsg(inp,d){
-  inp.left=d.l||false;inp.right=d.r||false;inp.down=d.d||false;inp.up=d.u||false;inp.heavyHeld=d.hh||false;
-  if(d.j)inp.jump=true;if(d.li)inp.light=true;if(d.h)inp.heavy=true;
-  if(d.sh)inp.shield=true;if(d.da)inp.dash=true;if(d.hr)inp.heavyRelease=true;
-}
-function clearPendNet(inp){inp.jump=false;inp.light=false;inp.heavy=false;inp.shield=false;inp.dash=false;inp.heavyRelease=false;}
-
-function getNetInput() {
-  return {left:netRaw.left,right:netRaw.right,down:netRaw.down,up:netRaw.up,
-          jump:netJumpPend,light:netLightPend,heavy:netHeavyPend,shield:netShieldPend,
-          dash:netDashPend,heavyHeld:netRaw.heavyHeld,heavyRelease:netHeavyRelease,jumpHeld:netRaw.up||false};
-}
 function getInputForPn(pn) {
-  if (networkMode==='none') return pn===1?getP1Input():getP2Input();
+  if (networkMode==='team4') return pn===1?getP1Input():pn===2?getP2Input():pn===3?getP3Input():getP4Input();
   if (networkMode==='test') return pn===1?getP1Input():dummyInput();
-  const localPn=isHost?1:2;
-  return pn===localPn?getP1Input():getNetInput();
+  return pn===1?getP1Input():getP2Input();
 }
-function sendNet(data) { if (rtcConn&&rtcConn.open) rtcConn.send(data); }
-
-function handleNetData(data, fromPn) {
-  if (!data||!data.t) return;
-  // 1v1 peer-to-peer protocol
-  if(data.t==='hello'&&!isHost){
-    if(gameState!=='charSelect'){hideNetUI();gameState='charSelect';}
-    return;
-  }
-  if(data.t==='hs'&&!isHost&&players.length===2){
-    // Guest receives host's state: P1 full + P2 combat results + P1 bullets
-    applyPlayerSt(players[0],data.p1);
-    const sc=data.p2c,pc=players[1];
-    if(!pc.dead){pc.damage=Math.max(pc.damage,sc.dmg);}
-    pc.stocks=Math.min(pc.stocks,sc.st);
-    pc.hitFlash=Math.max(pc.hitFlash,sc.hf||0);
-    if(sc.hst>pc.hstun){pc.hstun=sc.hst;pc.vx=sc.vx;pc.vy=sc.vy;}
-    // Replace P1 bullets in local array (keep own P2 bullets)
-    for(let i=bullets.length-1;i>=0;i--){if(bullets[i].owner!==players[1])bullets.splice(i,1);}
-    for(const b of data.bs){const ow=players[b.oi]||players[0];const nb=new Bullet(b.ox,b.oy,b.vx,b.vy,ow,b.hv===1);nb.x=b.x;nb.y=b.y;nb.dmg=b.dmg;nb.kb=b.kb;nb.maxDist=b.md;nb.wide=b.w===1;bullets.push(nb);}
-    for(let i=pristineRockets.length-1;i>=0;i--){if(pristineRockets[i].owner!==players[1])pristineRockets.splice(i,1);}
-    for(const r of data.prs){const ow=players[r.oi]||players[0];const nr=new PristineRocket(r.x,r.y,r.vx,r.vy,ow);nr.timer=r.ti;pristineRockets.push(nr);}
-  } else if(data.t==='gs'&&isHost&&players.length===2){
-    // Host receives guest's state: P2 full + P1 combat results + P2 bullets
-    applyPlayerSt(players[1],data.p2);
-    const sc=data.p1c,pc=players[0];
-    if(!pc.dead){pc.damage=Math.max(pc.damage,sc.dmg);}
-    pc.stocks=Math.min(pc.stocks,sc.st);
-    pc.hitFlash=Math.max(pc.hitFlash,sc.hf||0);
-    if(sc.hst>pc.hstun){pc.hstun=sc.hst;pc.vx=sc.vx;pc.vy=sc.vy;}
-    // Replace P2 bullets in local array (keep own P1 bullets)
-    for(let i=bullets.length-1;i>=0;i--){if(bullets[i].owner!==players[0])bullets.splice(i,1);}
-    for(const b of data.bs){const ow=players[b.oi]||players[0];const nb=new Bullet(b.ox,b.oy,b.vx,b.vy,ow,b.hv===1);nb.x=b.x;nb.y=b.y;nb.dmg=b.dmg;nb.kb=b.kb;nb.maxDist=b.md;nb.wide=b.w===1;bullets.push(nb);}
-    for(let i=pristineRockets.length-1;i>=0;i--){if(pristineRockets[i].owner!==players[0])pristineRockets.splice(i,1);}
-    for(const r of data.prs){const ow=players[r.oi]||players[0];const nr=new PristineRocket(r.x,r.y,r.vx,r.vy,ow);nr.timer=r.ti;pristineRockets.push(nr);}
-  } else if (data.t==='char') {
-    if(isHost){ p2Sel=data.id; confirmedChars[2]=data.id; if(p1Confirmed) gameState='stageSelect'; }
-    else { p1Sel=data.id; confirmedChars[1]=data.id; }
-  } else if (data.t==='stage') { stageSel=data.id; }
-  else if (data.t==='start') { startGame(); }
-}
-
-function setupConn(c) {
-  rtcConn=c;
-  p1Confirmed=false; confirmedChars={};
-  const onOpen=()=>{ netConnected=true; hideNetUI(); gameState='charSelect'; if(isHost) sendNet({t:'hello'}); };
-  if(c.open) onOpen(); else c.on('open',onOpen);
-  c.on('data',d=>handleNetData(d));
-  c.on('close',()=>{ netConnected=false; if(gameState==='game'){winner='Connection lost!';gameState='gameOver';gameOverTimer=300;} });
-}
-function startHosting() {
-  isHost=true; networkMode='host';
-  showNetUI('Hosting Game','Waiting for server…', {showCode:true});
-  rtcPeer=new Peer(PEER_CFG);
-  rtcPeer.on('open',id=>{
-    myPeerCode=id;
-    document.getElementById('netTitle').textContent='Host — Your Code';
-    document.getElementById('netMsg').textContent='Share this code with Player 2. Waiting for them to join…';
-    document.getElementById('netCode').value=id;
-    document.getElementById('netCopy').style.display='inline';
-  });
-  rtcPeer.on('connection',c=>{ setupConn(c); });
-  rtcPeer.on('error',err=>{ alert('Network error: '+err.type+'\n\nMake sure you have an internet connection and try again.'); hideNetUI(); networkMode='none'; isHost=false; });
-}
-function startJoining() {
-  isHost=false; networkMode='guest';
-  showNetUI('Join Game','Paste the host\'s code below and click Connect.', {showInput:true});
-  document.getElementById('netSubmit').onclick=()=>{
-    const code=document.getElementById('netInput').value.trim();
-    if(!code){document.getElementById('netMsg').textContent='Please paste the host code first.';return;}
-    document.getElementById('netMsg').textContent='Connecting…';
-    document.getElementById('netSubmit').disabled=true;
-    if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}
-    rtcPeer=new Peer(PEER_CFG);
-    let timeout=setTimeout(()=>{
-      if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}
-      document.getElementById('netMsg').textContent='Timed out. Check the code and try again.';
-      document.getElementById('netSubmit').disabled=false;
-      networkMode='none';
-    },25000);
-    rtcPeer.on('open',()=>{
-      const c=rtcPeer.connect(code);
-      setupConn(c);
-      c.on('open',()=>clearTimeout(timeout));
-    });
-    rtcPeer.on('error',err=>{
-      clearTimeout(timeout);
-      const msg=err.type==='peer-unavailable'?'Code not found — check the host code and try again.':'Connection failed ('+err.type+'). Check your internet and try again.';
-      document.getElementById('netMsg').textContent=msg;
-      document.getElementById('netSubmit').disabled=false;
-      networkMode='none';
-    });
-  };
-}
-function showNetUI(title,msg,opts={}) {
-  const el=id=>document.getElementById(id);
-  el('netUI').style.display='block';
-  el('netTitle').textContent=title;
-  el('netMsg').textContent=msg;
-  el('netCode').style.display=opts.showCode?'block':'none';
-  el('netCode').value='';
-  el('netInput').style.display=opts.showInput?'block':'none';
-  el('netInput').value='';
-  el('netCopy').style.display='none';
-  el('netSubmit').style.display=opts.showInput?'inline':'none';
-  el('netSubmit').disabled=false;
-}
-function hideNetUI() { document.getElementById('netUI').style.display='none'; }
-document.getElementById('netCopy').addEventListener('click',()=>{
-  navigator.clipboard.writeText(document.getElementById('netCode').value).catch(()=>{});
-  document.getElementById('netCopy').textContent='Copied!';
-  setTimeout(()=>{ document.getElementById('netCopy').textContent='Copy Code'; },1500);
-});
-document.getElementById('netCancel').addEventListener('click',()=>{
-  hideNetUI();
-  confirmedChars={};
-  if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}
-  rtcConn=null; netConnected=false;
-  networkMode='none'; isHost=false; gameState='modeSelect';
-});
 
 // ---- Team helper ----
 function sameTeam(a,b){return a&&b&&a.team>0&&b.team>0&&a.team===b.team;}
@@ -447,7 +304,7 @@ class Bullet {
       if (this.x+bLen>p.x&&this.x-bLen<p.right&&this.y+bWid>p.y&&this.y-bWid<p.bottom) {
         if(p.damage>=250&&!p.isDummy){instakill(p,this.x,this.y);this.dead=true;return;}
         p.damage+=Math.round(this.dmg*(p.ch.def??1)); p.hitFlash=14; p.charging=false; p.chargeTime=0;
-        const km=1+p.damage/95, kb=this.kb*km/p.ch.weight;
+        const km=kbScale(p.damage), kb=this.kb*km/p.ch.weight;
         p.vx=this.vx>0?kb:-kb; p.vy=-kb*0.25;
         p.vx=Math.max(-MAX_KB,Math.min(MAX_KB,p.vx)); p.vy=Math.max(-MAX_KB,Math.min(MAX_KB,p.vy));
         p.hstun=Math.min(35,Math.floor(5+kb*1.5));
@@ -995,6 +852,8 @@ class Player {
     this.flyActive=false; this.flyTimer=180; this.flyCooldown=0; this.flyMaxCool=180;
     // PRISTINE laser shield
     this.laserShieldActive=false; this.laserShieldTimer=0;
+    // PRISTINE rocket cooldown (blocks only side heavy re-fire)
+    this.pristineRocketCd=0;
     // MAGMA flamethrower fuel
     this.magmaFuel=ch.flameFuelMax||180;
     // FACTORY attack cooldowns
@@ -1018,6 +877,16 @@ class Player {
       if(keys['ArrowUp']||keys['_gp2U']||(keys['_ph2U']&&!phSide2))    return 'up';
       if(keys['ArrowDown']||keys['_gp2D']||(keys['_ph2D']&&!phSide2))  return 'down';
       if(keys['ArrowLeft']||keys['ArrowRight']||keys['_gp2L']||keys['_gp2R']||phSide2) return 'side';
+    } else if(this.localInputSlot===3){
+      const phSide3=keys['_ph3L']||keys['_ph3R'];
+      if(keys['_ph3U']&&!phSide3) return 'up';
+      if(keys['_ph3D']&&!phSide3) return 'down';
+      if(phSide3) return 'side';
+    } else if(this.localInputSlot===4){
+      const phSide4=keys['_ph4L']||keys['_ph4R'];
+      if(keys['_ph4U']&&!phSide4) return 'up';
+      if(keys['_ph4D']&&!phSide4) return 'down';
+      if(phSide4) return 'side';
     } else if(inp){
       // Remote player — derive from network input
       if(inp.up&&!inp.left&&!inp.right)   return 'up';
@@ -1257,6 +1126,7 @@ class Player {
           // Heavy attacks
           if(pd==='side'||pd==='neutral'){
             pristineRockets.push(new PristineRocket(this.cx,this.cy,f*8,0,this));
+            this.pristineRocketCd=300;
           } else if(pd==='down'){
             this.laserShieldActive=true;this.laserShieldTimer=60;
           } else if(pd==='up'){
@@ -1276,6 +1146,8 @@ class Player {
     if(this.ch.id===10&&this.laserShieldActive){
       this.laserShieldTimer--;if(this.laserShieldTimer<=0)this.laserShieldActive=false;
     }
+    // PRISTINE rocket cooldown tick
+    if(this.ch.id===10&&this.pristineRocketCd>0) this.pristineRocketCd--;
 
     // MAGMA: flamethrower hold, fuel, and projectile attacks
     if(this.ch.id===11){
@@ -1387,7 +1259,7 @@ class Player {
               if(!aabb(hb,{x:tgt.x,y:tgt.y,w:tgt.w,h:tgt.h}))continue;
               if(tgt.damage>=250&&!tgt.isDummy){instakill(tgt,tgt.cx,tgt.cy);continue;}
               tgt.damage+=Math.round(this.ch.hDmg*0.4*(tgt.ch.def??1)); tgt.hitFlash=8;
-              const km=1+tgt.damage/95, kb=this.ch.hKB*0.3*km/tgt.ch.weight;
+              const km=kbScale(tgt.damage), kb=this.ch.hKB*0.3*km/tgt.ch.weight;
               tgt.vx=f*kb; tgt.vy=-kb*0.2;
               tgt.vx=Math.max(-MAX_KB,Math.min(MAX_KB,tgt.vx)); tgt.vy=Math.max(-MAX_KB,Math.min(MAX_KB,tgt.vy));
               tgt.hstun=Math.min(20,Math.floor(3+kb*0.8)); tgt.hitlag=3;
@@ -1452,7 +1324,7 @@ class Player {
                 if(tgt.damage>=250&&!tgt.isDummy){instakill(tgt,tgt.cx,tgt.cy);continue;}
                 tgt.damage+=Math.round(this.ch.hDmg*1.2*(tgt.ch.def??1));
                 tgt.hitFlash=15;
-                const km=1+tgt.damage/95, kb=this.ch.hKB*1.3*km/tgt.ch.weight;
+                const km=kbScale(tgt.damage), kb=this.ch.hKB*1.3*km/tgt.ch.weight;
                 tgt.vx=f*kb; tgt.vy=-kb*0.5;
                 tgt.vx=Math.max(-MAX_KB,Math.min(MAX_KB,tgt.vx)); tgt.vy=Math.max(-MAX_KB,Math.min(MAX_KB,tgt.vy));
                 tgt.hstun=Math.min(30,Math.floor(5+kb*1.4)); tgt.hitlag=6; this.hitlag=4;
@@ -1516,6 +1388,13 @@ class Player {
         // FACTORY: block down attacks when on cooldown
         if(inp.light){if(!(ad==='down'&&this.factoryBoltCD>0))this.startAtk('light',ad);}
         else if(inp.heavy){if(!(ad==='down'&&this.factoryZapCD>0))this.startAtk('heavy',ad);}
+      } else if(this.ch.id===10){
+        // PRISTINE: side heavy blocked by rocket cooldown; other attacks free
+        if(inp.light) this.startAtk('light',ad);
+        else if(inp.heavy&&!canCharge){
+          const sideBlocked=(ad==='side'||ad==='neutral')&&this.pristineRocketCd>0;
+          if(!sideBlocked) this.startAtk('heavy',ad);
+        }
       } else if(this.ch.id===13){
         // GLITCH: cannot attack while phase is active
         if(this.glitchPhaseTimer===0){
@@ -1661,7 +1540,7 @@ class Player {
       if(type==='light'){su=3;act=6;el=8;}
       else if(dir==='down'){su=14;act=4;el=20;} // laser shield
       else if(dir==='up'){su=8;act=5;el=14;}    // 4 diagonal beams
-      else{su=10;act=5;el=300;}                   // homing rocket
+      else{su=10;act=5;el=14;}                    // homing rocket
     }
     // BLASTER direction-specific heavy timing
     if(c.id===3&&type==='heavy'){
@@ -1909,11 +1788,11 @@ class Player {
     }
     if(!this.isDummy) target.damage+=Math.round(dmg*(target.ch.def??1));
     target.hitFlash=15;
-    const km=1+target.damage/95, kb=baseKB*km/target.ch.weight, f=this.facing;
+    const km=kbScale(target.damage), kb=baseKB*km/target.ch.weight, f=this.facing;
     switch(dir){
-      case 'up':   target.vx=f*kb*0.25;target.vy=-kb*1.3;break;
+      case 'up':   target.vx=f*kb*0.45;target.vy=-kb*0.85;break;
       case 'down': target.vx=f*kb*0.4; target.vy= kb*0.9;break;
-      default:     target.vx=f*kb;     target.vy=-kb*0.38;
+      default:     target.vx=f*kb*1.2; target.vy=-kb*0.22;
     }
     // Velocity cap to prevent extreme launch speeds
     target.vx=Math.max(-MAX_KB,Math.min(MAX_KB,target.vx));
@@ -1950,7 +1829,7 @@ class Player {
   doRespawn(){
     this.dead=false;this.x=this.spawnX-this.w/2;this.y=80;this.vx=this.vy=0;this.jLeft=2;this.onGnd=false;this.onPlat=false;
     if(this.ch.id===6){this.armsLeft=4;this.rocketLightCD=0;this.rocketSideHeavyCD=0;this.rocketUpHeavyCD=0;for(const a of rocketArms)if(a.owner===this)a.dead=true;for(const m of rocketMines)if(m.owner===this)m.dead=true;}
-    if(this.ch.id===10){this.flyActive=false;this.flyTimer=180;this.flyCooldown=0;this.laserShieldActive=false;this.laserShieldTimer=0;for(const r of pristineRockets)if(r.owner===this)r.dead=true;}
+    if(this.ch.id===10){this.flyActive=false;this.flyTimer=180;this.flyCooldown=0;this.laserShieldActive=false;this.laserShieldTimer=0;this.pristineRocketCd=0;for(const r of pristineRockets)if(r.owner===this)r.dead=true;}
     if(this.ch.id===11){this.magmaFuel=this.ch.flameFuelMax||180;for(const fp of firePebbles)if(fp.owner===this)fp.dead=true;}
     if(this.ch.id===12){this.factoryBoltCD=0;this.factoryZapCD=0;for(const b of factoryBolts)if(b.owner===this)b.dead=true;for(const g of factoryGears)if(g.owner===this)g.dead=true;}
     if(this.ch.id===13){this.glitchPhaseTimer=0;this.glitchGhost=false;this.glitchWeapon=null;}
@@ -1969,17 +1848,6 @@ class Player {
     ctx.globalAlpha=1;
     ctx.restore();
 
-    // "YOU" indicator in network play
-    if(networkMode!=='none'&&networkMode!=='test'&&(this.pn===(isHost?1:2))){
-      const bob=Math.sin(frame*0.08)*3;
-      ctx.save();
-      ctx.font='bold 12px monospace'; ctx.textAlign='center';
-      ctx.shadowBlur=8; ctx.shadowColor=this.ch.color;
-      ctx.fillStyle=this.ch.color; ctx.globalAlpha=0.9;
-      ctx.fillText('YOU',this.cx,this.y-36+bob);
-      ctx.fillText('▼',this.cx,this.y-24+bob);
-      ctx.restore();
-    }
 
     // Combo window indicator: pulsing dots above character
     if(this.atk&&this.ch.maxCombo>1&&this.atk.type==='light'&&this.atk.frame>=this.atk.su&&(this.atk.comboN||1)<this.ch.maxCombo){
@@ -2147,8 +2015,7 @@ class Player {
     rrFill(x,y,bw,bh,9,'rgba(0,0,0,0.78)');
     rrStroke(x,y,bw,bh,9,this.dead?'#333':this.ch.color,2.5);
     ctx.fillStyle=this.ch.color;ctx.font='bold 13px monospace';ctx.textAlign='left';
-    const isLocal=networkMode!=='none'&&networkMode!=='test'&&(this.pn===(isHost?1:2));
-    const label=this.isDummy?'DUMMY':isLocal?`YOU (P${this.pn}): ${this.ch.name}`:`P${this.pn}: ${this.ch.name}`;
+    const label=this.isDummy?'DUMMY':`P${this.pn}: ${this.ch.name}`;
     ctx.fillText(label,x+10,y+22);
     if(this.isDummy){
       ctx.fillStyle='#888';ctx.font='bold 20px monospace';ctx.fillText(`${Math.round(this.damage)}%`,x+10,y+56);
@@ -2186,7 +2053,7 @@ function explodeMines(owner,target){
   if(target&&!target.shieldActive){
     if(target.damage>=250&&!target.isDummy){instakill(target,target.cx,target.cy);return;}
     target.damage+=Math.round(14*(target.ch.def??1)); target.hitFlash=14; target.charging=false; target.chargeTime=0;
-    const km=1+target.damage/95, kb=12*km/target.ch.weight;
+    const km=kbScale(target.damage), kb=12*km/target.ch.weight;
     target.vx=owner.facing*kb; target.vy=-kb*0.7;
     target.vx=Math.max(-MAX_KB,Math.min(MAX_KB,target.vx));
     target.vy=Math.max(-MAX_KB,Math.min(MAX_KB,target.vy));
@@ -2213,7 +2080,7 @@ class RocketArm {
     const kbMult=this.kbMult||mult;
     const dmg=Math.round((this.heavy?Math.round(5*2.5):5)*mult), kb=(this.heavy?4*2.5:4)*kbMult;
     target.damage+=Math.round(dmg*(target.ch.def??1)); target.hitFlash=14; target.charging=false; target.chargeTime=0;
-    const km=1+target.damage/95, kbS=kb*km/target.ch.weight;
+    const km=kbScale(target.damage), kbS=kb*km/target.ch.weight;
     const kDir=this.goingOut?(this.vx>0?1:-1):this.owner.facing;
     target.vx=kDir*kbS; target.vy=-kbS*0.35;
     target.vx=Math.max(-MAX_KB,Math.min(MAX_KB,target.vx));
@@ -2355,7 +2222,7 @@ class FactoryBolt {
       if(p.laserShieldActive){this.owner.damage+=Math.round(this.dmg*(this.owner.ch.def??1));this.owner.hitFlash=12;this.dead=true;return;}
       if(p.damage>=250&&!p.isDummy){instakill(p,this.cx,this.cy);this.dead=true;return;}
       p.damage+=Math.round(this.dmg*(p.ch.def??1)); p.hitFlash=14; p.charging=false; p.chargeTime=0;
-      const km=1+p.damage/95, kb=this.kb*km/p.ch.weight;
+      const km=kbScale(p.damage), kb=this.kb*km/p.ch.weight;
       p.vx=this.vx>0?kb:-kb; p.vy=-kb*0.35;
       p.vx=Math.max(-MAX_KB,Math.min(MAX_KB,p.vx)); p.vy=Math.max(-MAX_KB,Math.min(MAX_KB,p.vy));
       p.hstun=Math.min(30,Math.floor(5+kb*1.4)); p.onGnd=false; p.onPlat=false;
@@ -2403,7 +2270,7 @@ class FactoryGear {
       if(p.laserShieldActive){this.owner.damage+=Math.round(this.dmg*(this.owner.ch.def??1));this.owner.hitFlash=12;continue;}
       if(p.damage>=250&&!p.isDummy){instakill(p,this.x,this.y);continue;}
       p.damage+=Math.round(this.dmg*(p.ch.def??1)); p.hitFlash=14; p.charging=false; p.chargeTime=0;
-      const km=1+p.damage/95, kb=this.kb*km/p.ch.weight;
+      const km=kbScale(p.damage), kb=this.kb*km/p.ch.weight;
       p.vx=(p.cx>this.x?1:-1)*kb*0.4;
       p.vy=this.goingUp?-kb*1.1:kb*0.7;
       p.vx=Math.max(-MAX_KB,Math.min(MAX_KB,p.vx)); p.vy=Math.max(-MAX_KB,Math.min(MAX_KB,p.vy));
@@ -2499,7 +2366,7 @@ class FirePebble {
       if(this.x>p.x&&this.x<p.right&&this.y>p.y&&this.y<p.bottom){
         if(p.damage>=250&&!p.isDummy){instakill(p,this.x,this.y);this.dead=true;return;}
         p.damage+=Math.round(this.dmg*(p.ch.def??1)); p.hitFlash=10;
-        const km=1+p.damage/95, kb=this.kb*km/p.ch.weight;
+        const km=kbScale(p.damage), kb=this.kb*km/p.ch.weight;
         p.vx=this.vx>0?kb:-kb; p.vy=-kb*0.25;
         p.vx=Math.max(-MAX_KB,Math.min(MAX_KB,p.vx)); p.vy=Math.max(-MAX_KB,Math.min(MAX_KB,p.vy));
         p.hstun=Math.min(28,Math.floor(4+kb*1.2)); p.onGnd=false; p.onPlat=false;
@@ -2538,7 +2405,7 @@ class FirePebble {
       if(Math.hypot(dx,dy)<r+Math.max(p.w,p.h)/2){
         if(p.damage>=250&&!p.isDummy){instakill(p,p.cx,p.cy);this.explodeTimer=12;return;}
         p.damage+=Math.round(this.explodeDmg*(p.ch.def??1)); p.hitFlash=15;
-        const km=1+p.damage/95, kb=this.explodeKB*km/p.ch.weight;
+        const km=kbScale(p.damage), kb=this.explodeKB*km/p.ch.weight;
         const ang=Math.atan2(dy,dx);
         p.vx=Math.cos(ang)*kb; p.vy=Math.sin(ang)*kb-kb*0.4;
         p.vx=Math.max(-MAX_KB,Math.min(MAX_KB,p.vx)); p.vy=Math.max(-MAX_KB,Math.min(MAX_KB,p.vy));
@@ -2597,7 +2464,7 @@ class Knife {
       if(this.x>p.x&&this.x<p.right&&this.y>p.y&&this.y<p.bottom){
         if(p.damage>=250&&!p.isDummy){instakill(p,this.x,this.y);this.dead=true;return;}
         p.damage+=Math.round(this.dmg*(p.ch.def??1));p.hitFlash=14;p.charging=false;p.chargeTime=0;
-        const km=1+p.damage/95,kb=this.kb*km/p.ch.weight;
+        const km=kbScale(p.damage),kb=this.kb*km/p.ch.weight;
         p.vx=this.vx>0?kb:-kb;p.vy=-kb*0.3;
         p.vx=Math.max(-MAX_KB,Math.min(MAX_KB,p.vx));p.vy=Math.max(-MAX_KB,Math.min(MAX_KB,p.vy));
         p.hstun=Math.min(40,Math.floor(5+kb*1.8));
@@ -2640,7 +2507,7 @@ class ThrowSword {
       if(this.x>p.x-8&&this.x<p.right+8&&this.y>p.y-6&&this.y<p.bottom+6){
         if(p.damage>=250&&!p.isDummy){instakill(p,this.x,this.y);this.dead=true;return;}
         p.damage+=Math.round(this.dmg*(p.ch.def??1));p.hitFlash=14;p.charging=false;p.chargeTime=0;
-        const km=1+p.damage/95,kb=this.kb*km/p.ch.weight;
+        const km=kbScale(p.damage),kb=this.kb*km/p.ch.weight;
         p.vx=this.vx>0?kb:-kb;p.vy=-kb*0.45;
         p.vx=Math.max(-MAX_KB,Math.min(MAX_KB,p.vx));p.vy=Math.max(-MAX_KB,Math.min(MAX_KB,p.vy));
         p.hstun=Math.min(55,Math.floor(8+kb*2.2));
@@ -2708,7 +2575,7 @@ class PristineRocket {
     if(target.damage>=250&&!target.isDummy){instakill(target,this.x,this.y);this.dead=true;return;}
     target.damage+=Math.round(this.dmg*(target.ch.def??1));
     target.hitFlash=14; target.charging=false; target.chargeTime=0;
-    const km=1+target.damage/95,kb=this.kb*km/target.ch.weight;
+    const km=kbScale(target.damage),kb=this.kb*km/target.ch.weight;
     const ang=Math.atan2(this.vy,this.vx);
     target.vx=Math.cos(ang)*kb; target.vy=Math.sin(ang)*kb-kb*0.4;
     target.vx=Math.max(-MAX_KB,Math.min(MAX_KB,target.vx));
@@ -2828,7 +2695,7 @@ class UnstableHead {
   doHit(target,dir){
     if(target.shieldActive){addHitParticles(target.cx,target.cy,'#aaddff',false);return;}
     if(target.damage>=250&&!target.isDummy){instakill(target,this.x,this.y);this.dead=true;return;}
-    const km=1+target.damage/95, kb=this.kb*km/target.ch.weight;
+    const km=kbScale(target.damage), kb=this.kb*km/target.ch.weight;
     target.damage+=Math.round(this.dmg*(target.ch.def??1)); target.hitFlash=14; target.charging=false; target.chargeTime=0;
     target.vy=dir==='up'?-kb:Math.min(MAX_KB,kb*0.8); target.vx=0;
     target.vy=Math.max(-MAX_KB,Math.min(MAX_KB,target.vy));
@@ -2892,7 +2759,7 @@ class MiniSword {
       if(this.x<p.right&&this.x+8>p.x&&this.y<p.bottom&&this.y+24>p.y){
         if(p.damage>=250&&!p.isDummy){instakill(p,this.x+4,this.y+12);this.dead=true;return;}
         p.damage+=Math.round(this.dmg*(p.ch.def??1)); p.hitFlash=14; p.charging=false; p.chargeTime=0;
-        const km=1+p.damage/95, kb=this.kb*km/p.ch.weight;
+        const km=kbScale(p.damage), kb=this.kb*km/p.ch.weight;
         if(!this.rising){p.vx=this.owner.facing*kb*0.3;p.vy=kb*0.8;}
         else{p.vx=this.owner.facing*kb*0.2;p.vy=-kb;}
         p.vx=Math.max(-MAX_KB,Math.min(MAX_KB,p.vx));
@@ -4596,12 +4463,37 @@ function drawGear(x,y,r,c1,c2){
 // ---- Game State ----
 let carnivalAngle=0; // tracks ferris wheel rotation for THE CARNIVAL stage
 // ---- Audio ----
-let bgMusic=null;       // current HTMLAudioElement
+// Persistent lobby music element — created once, never destroyed so browser permission is retained
+const _lobbyAudio=new Audio('LobbyMusic.mp3');
+_lobbyAudio.loop=true;
+_lobbyAudio.volume=1.0;
+
+let bgMusic=null;       // current HTMLAudioElement (stage music)
 let bgMusicSrc='';      // src currently loaded
+
+function playLobbyMusic(){
+  // Pause stage music if playing
+  if(bgMusic){bgMusic.pause();bgMusic.currentTime=0;bgMusic=null;bgMusicSrc='';}
+  if(!_lobbyAudio.paused) return; // already playing
+  _lobbyAudio.play().catch(()=>{
+    // Autoplay blocked — retry on next user interaction
+    function onInteract(){
+      _lobbyAudio.play().catch(()=>{});
+      document.removeEventListener('keydown',onInteract);
+      document.removeEventListener('mousedown',onInteract);
+      document.removeEventListener('touchstart',onInteract);
+    }
+    document.addEventListener('keydown',onInteract);
+    document.addEventListener('mousedown',onInteract);
+    document.addEventListener('touchstart',onInteract);
+  });
+}
 
 function playStageMusic(st){
   const m=st&&st.music;
   if(!m){stopBgMusic();return;}
+  // Pause lobby music when stage music starts
+  if(!_lobbyAudio.paused){_lobbyAudio.pause();_lobbyAudio.currentTime=0;}
   if(bgMusic&&bgMusicSrc===m.src) return; // already playing
   stopBgMusic();
   bgMusic=new Audio(m.src);
@@ -4613,6 +4505,14 @@ function playStageMusic(st){
 
 function stopBgMusic(){
   if(bgMusic){bgMusic.pause();bgMusic.currentTime=0;bgMusic=null;bgMusicSrc='';}
+}
+
+// ---- Knockback scale ----
+function kbScale(dmg){
+  const base=1+dmg/95;
+  if(dmg<=100) return base;
+  const excess=dmg-100;
+  return base*Math.pow(1.02,excess); // +2% per % above 100
 }
 
 // ---- SFX ----
@@ -4695,47 +4595,39 @@ function sfxHit(heavy){
 }
 
 let gameState='modeSelect';
-let selectStep=0,p1Sel=0,p2Sel=1,stageSel=0,p1Confirmed=false;
+let selectStep=0,p1Sel=0,p2Sel=1,p3Sel=2,p4Sel=3,stageSel=0,p1Confirmed=false;
+let team4Done=[false,false,false,false]; // per-player confirm flags in team4 char select
 let charScrollY=0;
 let stageScrollY=0;
 let curStage=null,players=[],winner='',gameOverTimer=0;
 
 // ---- Menu Input ----
 function menuModeKey(code){
-  if(code==='KeyW'||code==='ArrowUp')modeSelIdx=(modeSelIdx+3)%4;
-  if(code==='KeyS'||code==='ArrowDown')modeSelIdx=(modeSelIdx+1)%4;
-  if(code==='Space'||code==='Enter'||code==='NumpadEnter'){code=['KeyL','KeyT','KeyH','KeyG'][modeSelIdx];}
+  const modeCount=3;
+  if(code==='KeyW'||code==='ArrowUp')modeSelIdx=(modeSelIdx+modeCount-1)%modeCount;
+  if(code==='KeyS'||code==='ArrowDown')modeSelIdx=(modeSelIdx+1)%modeCount;
+  if(code==='Space'||code==='Enter'||code==='NumpadEnter'){code=['KeyL','Key4','KeyT'][modeSelIdx];}
   if(code==='KeyL'){networkMode='none';gameState='charSelect';selectStep=0;p1Confirmed=false;charScrollY=0;}
+  if(code==='Key4'){networkMode='team4';gameState='charSelect';selectStep=0;p1Confirmed=false;charScrollY=0;}
   if(code==='KeyT'){networkMode='test';gameState='charSelect';selectStep=0;p1Confirmed=false;charScrollY=0;}
-  if(code==='KeyH'){startHosting();}
-  if(code==='KeyG'){startJoining();}
 }
 function menuCharKey(code){
   const rowH=230+12,maxSc=Math.max(0,(Math.ceil(CHARS.length/3)-2)*rowH);
   // Helper to scroll a given selection index into view
   const autoScroll=sel=>{const r=Math.floor(sel/3)*rowH;if(r<charScrollY)charScrollY=r;if(r+230>charScrollY+472)charScrollY=r+230-472;};
-  // 1v1 network: host picks P1, guest picks P2 — each independently
-  if(networkMode==='host'||networkMode==='guest'){
-    if(!p1Confirmed){
-      const netTotal=CHARS.length+1;
-      const mySel=isHost?p1Sel:p2Sel;
-      const setMySel=v=>{if(isHost)p1Sel=v;else p2Sel=v;};
-      if(code==='KeyA'||code==='ArrowLeft') setMySel((mySel+netTotal-1)%netTotal);
-      if(code==='KeyD'||code==='ArrowRight') setMySel((mySel+1)%netTotal);
-      if(code==='KeyW'||code==='ArrowUp') charScrollY=Math.max(0,charScrollY-rowH);
-      if(code==='KeyS'||code==='ArrowDown') charScrollY=Math.min(maxSc,charScrollY+rowH);
-      autoScroll(isHost?p1Sel:p2Sel);
-      if(code==='Space'||code==='Enter'||code==='NumpadEnter'){
-        // Resolve random before confirming
-        if(isHost&&p1Sel===CHARS.length) p1Sel=Math.floor(Math.random()*CHARS.length);
-        if(!isHost&&p2Sel===CHARS.length) p2Sel=Math.floor(Math.random()*CHARS.length);
-        p1Confirmed=true;
-        const pn=isHost?1:2, id=isHost?p1Sel:p2Sel;
-        confirmedChars[pn]=id;
-        sendNet({t:'char',pn,id});
-        // Host: if guest already confirmed, advance now
-        if(isHost&&confirmedChars[2]!=null) gameState='stageSelect';
-      }
+  // 4-player team mode: each phone navigates and confirms independently
+  if(networkMode==='team4'&&code&&typeof code==='object'){
+    const {pi,dir}=code;
+    const getters=[()=>p1Sel,()=>p2Sel,()=>p3Sel,()=>p4Sel];
+    const setters=[v=>p1Sel=v,v=>p2Sel=v,v=>p3Sel=v,v=>p4Sel=v];
+    const totalSlots=CHARS.length+1;
+    if(team4Done[pi])return; // already locked in
+    if(dir==='left'){setters[pi]((getters[pi]()+totalSlots-1)%totalSlots);autoScroll(getters[pi]());}
+    if(dir==='right'){setters[pi]((getters[pi]()+1)%totalSlots);autoScroll(getters[pi]());}
+    if(dir==='confirm'){
+      if(getters[pi]()===CHARS.length)setters[pi](Math.floor(Math.random()*CHARS.length));
+      team4Done[pi]=true;
+      if(team4Done.every(v=>v))gameState='stageSelect';
     }
     return;
   }
@@ -4776,9 +4668,6 @@ function menuStageKey(code){
   if(code==='KeyS'||code==='ArrowDown'){stageScrollY=Math.min(maxSc,stageScrollY+rowH);const newRow=Math.floor(stageScrollY/rowH);if(Math.floor(stageSel/cols)<newRow)stageSel=Math.min(stTotal-1,(Math.floor(stageSel/cols)+1)*cols+(stageSel%cols));}
   if(code==='Space'||code==='Enter'||code==='NumpadEnter'){
     if(stageSel===STAGES.length)stageSel=Math.floor(Math.random()*STAGES.length);
-    if(networkMode==='host'){
-      sendNet({t:'stage',id:stageSel});sendNet({t:'start'});
-    }
     startGame();
   }
 }
@@ -4790,13 +4679,12 @@ function drawModeSelect(){
   ctx.font='15px monospace';ctx.fillStyle='#444';ctx.fillText('A Platform Fighter',W/2,102);
   const options=[
     {key:'L',label:'Local 1v1',sub:'Both players on this computer',col:'#44aaff'},
-    {key:'H',label:'Host 1v1',sub:'Host a game — share code with P2',col:'#ff6644'},
-    {key:'G',label:'Join 1v1',sub:'Enter a host code to connect',col:'#ff6644'},
+    {key:'4',label:'Local 4P Teams',sub:'4 phones — P1&P3 vs P2&P4',col:'#ffaa00'},
     {key:'T',label:'Test Mode',sub:'Practice against a stationary dummy',col:'#88cc33'},
   ];
-  const bw=260,bh=72,sx=W/2-bw/2;
+  const bw=260,bh=66,sx=W/2-bw/2;
   options.forEach((o,i)=>{
-    const bx=sx,by=148+i*84,sel=i===modeSelIdx;
+    const bx=sx,by=130+i*74,sel=i===modeSelIdx;
     rrFill(bx,by,bw,bh,8,sel?'rgba(40,40,80,0.95)':'rgba(20,20,40,0.9)');rrStroke(bx,by,bw,bh,8,o.col,sel?3:2);
     if(sel){ctx.fillStyle=o.col;ctx.font='bold 20px monospace';ctx.textAlign='left';ctx.fillText('\u25B6',bx-22,by+30);}
     ctx.fillStyle=o.col;ctx.font='bold 17px monospace';ctx.textAlign='left';ctx.fillText(`[${o.key}] ${o.label}`,bx+12,by+25);
@@ -4808,39 +4696,46 @@ function drawModeSelect(){
 
 function drawCharSelect(){
   const gr=ctx.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#080818');gr.addColorStop(1,'#000000');ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
-  const isGuest=networkMode==='guest';
   // Header
   ctx.textAlign='center';ctx.font='bold 32px monospace';ctx.fillStyle='#fff';
   ctx.fillText('CHARACTER SELECT',W/2,40);
   ctx.font='13px monospace';ctx.fillStyle='#777';
-  if(networkMode==='test') ctx.fillText('A/D to browse  |  SPACE to confirm',W/2,60);
-  else if(networkMode==='host'||networkMode==='guest'){
-    const myPnum=isHost?1:2;
-    ctx.fillStyle=myPnum===1?'#3399ff':'#ff6644';
-    if(!p1Confirmed) ctx.fillText(`P${myPnum} (YOU) — A/D to browse  |  SPACE to confirm`,W/2,60);
-    else{ctx.fillStyle='#555';ctx.fillText('Confirmed! Waiting for other player\u2026',W/2,60);}
-  }
+  if(networkMode==='team4') ctx.fillText('Each player: left/right on phone to browse  |  jump/light to confirm',W/2,60);
+  else if(networkMode==='test') ctx.fillText('A/D to browse  |  SPACE to confirm',W/2,60);
   else if(selectStep===0) ctx.fillText('P1: A/D to browse  |  SPACE to confirm',W/2,60);
-  else if(networkMode==='none') ctx.fillText('P2: Arrow keys to browse  |  ENTER to confirm',W/2,60);
-  else ctx.fillText('Waiting for other player...',W/2,60);
+  else ctx.fillText('P2: Arrow keys to browse  |  ENTER to confirm',W/2,60);
 
-  // 1v1 network: show both player picks at top
-  if(networkMode==='host'||networkMode==='guest'){
-    const slots=[{sel:p1Sel,lbl:'P1',col:'#3399ff'},{sel:p2Sel,lbl:'P2',col:'#ff6644'}];
-    const startX=W/2-(2*58)/2+25-29;
-    for(let s=0;s<2;s++){
-      const px=startX+s*58,py=82;
-      const conf=confirmedChars[s+1]!=null;
-      ctx.strokeStyle=conf?slots[s].col:'#333';ctx.lineWidth=conf?2:1;
-      ctx.strokeRect(px-22,py-2,44,38);
-      ctx.save();ctx.translate(px,py+18);ctx.scale(0.9,0.9);drawCharacter(ctx,CHARS[slots[s].sel],CHARS[slots[s].sel].w,CHARS[slots[s].sel].h,null,true,0);ctx.restore();
-      ctx.fillStyle=conf?slots[s].col:'#555';ctx.font='9px monospace';ctx.textAlign='center';ctx.fillText(slots[s].lbl,px,py+44);
+  // 4-player team mode: show all 4 player picks + team labels at top
+  if(networkMode==='team4'){
+    const t4slots=[
+      {sel:p1Sel,lbl:'P1',col:'#3399ff',team:1},
+      {sel:p2Sel,lbl:'P2',col:'#ff6644',team:2},
+      {sel:p3Sel,lbl:'P3',col:'#44ddff',team:1},
+      {sel:p4Sel,lbl:'P4',col:'#ff9944',team:2},
+    ];
+    const startX=W/2-(4*62)/2+31;
+    for(let s=0;s<4;s++){
+      const px=startX+s*62,py=82;
+      const done=team4Done[s];
+      const col=t4slots[s].col;
+      ctx.strokeStyle=done?col:'#333';ctx.lineWidth=done?2.5:1;
+      ctx.strokeRect(px-24,py-2,48,40);
+      const charSel=t4slots[s].sel<CHARS.length?t4slots[s].sel:0;
+      ctx.save();ctx.translate(px,py+20);ctx.scale(0.95,0.95);drawCharacter(ctx,CHARS[charSel],CHARS[charSel].w,CHARS[charSel].h,null,true,0);ctx.restore();
+      ctx.fillStyle=done?col:'#555';ctx.font='9px monospace';ctx.textAlign='center';
+      ctx.fillText(t4slots[s].lbl+(done?' ✓':''),px,py+48);
+      // Team label
+      const teamCol=t4slots[s].team===1?'#3399ff':'#ff6644';
+      ctx.fillStyle=teamCol;ctx.font='8px monospace';ctx.fillText(`T${t4slots[s].team}`,px,py-6);
     }
+    // Team divider
+    ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(W/2,76);ctx.lineTo(W/2,134);ctx.stroke();ctx.setLineDash([]);
   }
   const cw=285,cardH=230,gapX=14,gapY=12,cols=3;
   const totalW=cols*cw+(cols-1)*gapX;
   const sx2=(W-totalW)/2;
-  const clipTop=(networkMode==='host'||networkMode==='guest')?110:70,clipBot=H-10,visibleH=clipBot-clipTop;
+  const clipTop=(networkMode==='team4')?140:70,clipBot=H-10,visibleH=clipBot-clipTop;
   const maxSc=Math.max(0,(Math.ceil((CHARS.length+1)/3)-2)*(cardH+gapY)); // +1 for RANDOM card
   // Clipped scroll region
   ctx.save();
@@ -4855,12 +4750,10 @@ function drawCharSelect(){
     const isSame=networkMode==='none'&&p1Confirmed&&p1Sel===i&&selectStep===1;
     rrFill(cx2,cy2,cw,cardH,10,isSame?'rgba(10,10,10,0.8)':'rgba(16,16,36,0.92)');
     let bc='#252535',bw3=1.5;
-    if(networkMode==='host'||networkMode==='guest'){
-      const myCursor=isHost?p1Sel:p2Sel;
-      const myCol2=isHost?'#3399ff':'#ff6644';
-      if(!p1Confirmed&&myCursor===i){bc=myCol2;bw3=3;}
-      if(confirmedChars[1]!=null&&p1Sel===i){bc='#3399ff';bw3=3;}
-      if(confirmedChars[2]!=null&&p2Sel===i){bc='#ff6644';bw3=3;}
+    if(networkMode==='team4'){
+      const t4cols=['#3399ff','#ff6644','#44ddff','#ff9944'];
+      const t4sels=[p1Sel,p2Sel,p3Sel,p4Sel];
+      for(let s=0;s<4;s++){if(t4sels[s]===i){bc=t4cols[s];bw3=team4Done[s]?3.5:2.5;}}
     } else {
       if(p1Confirmed&&p1Sel===i){bc='#3399ff';bw3=3;}
       else if(selectStep===0&&isP1Sel){bc='#3399ff';bw3=3;}
@@ -4874,14 +4767,12 @@ function drawCharSelect(){
     ctx.textAlign='left';ctx.fillStyle='#777';ctx.font='10px monospace';
     for(let j=0;j<Math.min(c.desc.length,2);j++) ctx.fillText('- '+c.desc[j],cx2+10,cy2+cardH-34+j*14);
     ctx.textAlign='center';ctx.font='bold 11px monospace';
-    if(networkMode==='host'||networkMode==='guest'){
+    if(networkMode==='team4'){
+      const t4cols=['#3399ff','#ff6644','#44ddff','#ff9944'];
+      const t4sels=[p1Sel,p2Sel,p3Sel,p4Sel];
+      const t4lbls=['P1','P2','P3','P4'];
       let yOff=16;
-      const youSel=isHost?p1Sel:p2Sel,otherSel=isHost?p2Sel:p1Sel;
-      const youLbl=isHost?'P1 (YOU)':'P2 (YOU)',otherLbl=isHost?'P2':'P1';
-      const youCol=isHost?'#3399ff':'#ff6644',otherCol=isHost?'#ff6644':'#3399ff';
-      const otherPn=isHost?2:1;
-      if(youSel===i){ctx.fillStyle=youCol;ctx.fillText(youLbl,cx2+cw/2,cy2+yOff);yOff+=14;}
-      if(otherSel===i&&confirmedChars[otherPn]!=null){ctx.fillStyle=otherCol;ctx.fillText(otherLbl,cx2+cw/2,cy2+yOff);}
+      for(let s=0;s<4;s++){if(t4sels[s]===i){ctx.fillStyle=t4cols[s];ctx.fillText(t4lbls[s]+(team4Done[s]?' ✓':''),cx2+cw/2,cy2+yOff);yOff+=14;}}
     } else {
       if(p1Confirmed&&p1Sel===i){ctx.fillStyle='#3399ff';ctx.fillText('P1',cx2+cw/2,cy2+16);}
       else if(selectStep===0&&isP1Sel){ctx.fillStyle='#3399ff';ctx.fillText('P1',cx2+cw/2,cy2+16);}
@@ -4892,7 +4783,7 @@ function drawCharSelect(){
   {
     const ri=CHARS.length, row=Math.floor(ri/cols), col=ri%cols;
     const rx=sx2+col*(cw+gapX), ry=clipTop+2+row*(cardH+gapY);
-    const rSel=(networkMode==='host'||networkMode==='guest')?(isHost?p1Sel:p2Sel)===ri
+    const rSel=networkMode==='team4'?[p1Sel,p2Sel,p3Sel,p4Sel].includes(ri)
                :(selectStep===0?p1Sel===ri:p2Sel===ri);
     const pulse=Math.sin(frame*0.07)*0.18+0.82;
     rrFill(rx,ry,cw,cardH,10,'rgba(14,10,30,0.92)');
@@ -4908,7 +4799,7 @@ function drawCharSelect(){
     ctx.fillText('Pick a surprise fighter!',rx+cw/2,ry+cardH-18);
     if(rSel){
       ctx.fillStyle='#ffcc00';ctx.font='bold 9px monospace';
-      if(selectStep===0||(networkMode==='host'||networkMode==='guest')) ctx.fillText('P1',rx+cw/2,ry+16);
+      if(selectStep===0) ctx.fillText('P1',rx+cw/2,ry+16);
       else ctx.fillText('P2',rx+cw/2,ry+16);
     }
   }
@@ -5024,17 +4915,26 @@ function drawGameOver(){
 function startGame(){
   curStage=STAGES[stageSel];
   const clr=()=>{winner='';gameState='game';frame=0;particles.length=0;bullets.length=0;miniSwords.length=0;rocketArms.length=0;rocketMines.length=0;smokeClouds.length=0;unstableHeads.length=0;knives.length=0;throwSwords.length=0;firePebbles.length=0;factoryBolts.length=0;factoryGears.length=0;factoryZaps.length=0;shakeX=0;shakeY=0;};
-  const p1c=CHARS[p1Sel],p2c=networkMode==='test'?DUMMY_CHAR:CHARS[p2Sel];
-  players=[new Player(p1c,curStage.spawnX[0],1,false),new Player(p2c,curStage.spawnX[1],2,networkMode==='test')];
-  players[1].facing=-1;
-  if(networkMode==='none'||networkMode==='test'){
-    players[0].localInputSlot=1; players[1].localInputSlot=2;
-  } else if(isHost){
-    players[0].localInputSlot=1;
-    players[1].localInputSlot=null;
+  if(networkMode==='team4'){
+    // 4 spawn points: spread evenly across the stage
+    const stageW=curStage.ground.w||1000;
+    const baseX=curStage.ground.x||0;
+    const spawnXs=[baseX+stageW*0.18,baseX+stageW*0.38,baseX+stageW*0.62,baseX+stageW*0.82];
+    const sels=[p1Sel,p2Sel,p3Sel,p4Sel];
+    // Teams: P1&P3 = team 1, P2&P4 = team 2
+    const teams=[1,2,1,2];
+    players=sels.map((sel,i)=>{
+      const p=new Player(CHARS[sel],spawnXs[i],i+1,false);
+      p.localInputSlot=i+1;
+      p.team=teams[i];
+      p.facing=teams[i]===1?1:-1;
+      return p;
+    });
   } else {
-    players[0].localInputSlot=null;
-    players[1].localInputSlot=1;
+    const p1c=CHARS[p1Sel],p2c=networkMode==='test'?DUMMY_CHAR:CHARS[p2Sel];
+    players=[new Player(p1c,curStage.spawnX[0],1,false),new Player(p2c,curStage.spawnX[1],2,networkMode==='test')];
+    players[1].facing=-1;
+    players[0].localInputSlot=1; players[1].localInputSlot=2;
   }
   clr();
 }
@@ -5050,47 +4950,25 @@ function updateGame(){
       curStage.plats[i].y=cy+Math.sin(a)*r;
     }
   }
-  // Collect all inputs then clear pend flags
+  // Collect all inputs
   const inputs=players.map((_,i)=>getInputForPn(i+1));
-  netJumpPend=false;netLightPend=false;netHeavyPend=false;netShieldPend=false;netDashPend=false;netHeavyRelease=false;
   // Update players
   {
-    if(networkMode==='none'||networkMode==='test'){
-      // Offline / test: full local simulation
+    if(networkMode==='team4'){
+      // 4-player local: each player gets all others as opponents
+      for(let i=0;i<players.length;i++){
+        players[i].update(inputs[i],curStage,players.filter((_,j)=>j!==i));
+      }
+      for(const p of players)p.checkKill();
+    } else {
       players[0].update(inputs[0],curStage,[players[1]]);
       players[1].update(inputs[1],curStage,[players[0]]);
       players[0].checkKill();players[1].checkKill();
-    } else if(isHost){
-      // Host runs P1 locally; P2 state arrives from guest via {t:'gs'}
-      players[0].update(inputs[0],curStage,[players[1]]);
-      players[0].checkKill();
-      if(players[1].hitlag>0) players[1].hitlag--;
-      // P2 combat results: damage P1 dealt to P2 this frame (dead/rt omitted — propagated via full state)
-      const p2c={dmg:players[1].damage,st:players[1].stocks,hst:players[1].hstun,hf:players[1].hitFlash,vx:players[1].vx,vy:players[1].vy};
-      const myBs=bullets.filter(b=>b.owner===players[0]);
-      const myPrs=pristineRockets.filter(r=>r.owner===players[0]);
-      sendNet({t:'hs',p1:serializePlayer(players[0]),p2c,
-        bs:myBs.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,oi:0,hv:b.heavy?1:0,w:b.wide?1:0,dmg:b.dmg,kb:b.kb,md:b.maxDist,ox:b.ox,oy:b.oy})),
-        prs:myPrs.map(r=>({x:r.x,y:r.y,vx:r.vx,vy:r.vy,oi:0,ti:r.timer}))});
-    } else {
-      // Guest runs P2 locally; P1 state arrives from host via {t:'hs'}
-      players[1].update(getP1Input(),curStage,[players[0]]);
-      players[1].checkKill();
-      if(players[0].hitlag>0) players[0].hitlag--;
-      // P1 combat results: damage P2 dealt to P1 this frame (dead/rt omitted — propagated via full state)
-      const p1c={dmg:players[0].damage,st:players[0].stocks,hst:players[0].hstun,hf:players[0].hitFlash,vx:players[0].vx,vy:players[0].vy};
-      const myBs=bullets.filter(b=>b.owner===players[1]);
-      const myPrs=pristineRockets.filter(r=>r.owner===players[1]);
-      sendNet({t:'gs',p2:serializePlayer(players[1]),p1c,
-        bs:myBs.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,oi:1,hv:b.heavy?1:0,w:b.wide?1:0,dmg:b.dmg,kb:b.kb,md:b.maxDist,ox:b.ox,oy:b.oy})),
-        prs:myPrs.map(r=>({x:r.x,y:r.y,vx:r.vx,vy:r.vy,oi:1,ti:r.timer}))});
     }
   }
-  // Projectiles — in 1v1 network, each machine only updates its own player's projectiles.
-  // Opponent's bullets/rockets arrive via state sync and are rendered but not updated here.
+  // Projectiles
   {
-    const lp=(networkMode==='host'||networkMode==='guest')?(isHost?players[0]:players[1]):null;
-    for(let i=bullets.length-1;i>=0;i--){if(!lp||bullets[i].owner===lp){bullets[i].update(players);if(bullets[i].dead)bullets.splice(i,1);}}
+    for(let i=bullets.length-1;i>=0;i--){bullets[i].update(players);if(bullets[i].dead)bullets.splice(i,1);}
     for(let i=miniSwords.length-1;i>=0;i--){miniSwords[i].update(players,curStage);if(miniSwords[i].dead)miniSwords.splice(i,1);}
     for(let i=rocketArms.length-1;i>=0;i--){rocketArms[i].update(players);if(rocketArms[i].dead)rocketArms.splice(i,1);}
     for(let i=rocketMines.length-1;i>=0;i--){rocketMines[i].update(players);if(rocketMines[i].dead)rocketMines.splice(i,1);}
@@ -5098,28 +4976,40 @@ function updateGame(){
     for(let i=unstableHeads.length-1;i>=0;i--){unstableHeads[i].update(players);if(unstableHeads[i].dead)unstableHeads.splice(i,1);}
     for(let i=knives.length-1;i>=0;i--){knives[i].update(players);if(knives[i].dead)knives.splice(i,1);}
     for(let i=throwSwords.length-1;i>=0;i--){throwSwords[i].update(players);if(throwSwords[i].dead)throwSwords.splice(i,1);}
-    for(let i=firePebbles.length-1;i>=0;i--){if(!lp||firePebbles[i].owner===lp){firePebbles[i].update(players);if(firePebbles[i].dead)firePebbles.splice(i,1);}}
-    for(let i=pristineRockets.length-1;i>=0;i--){if(!lp||pristineRockets[i].owner===lp){pristineRockets[i].update(players);if(pristineRockets[i].dead)pristineRockets.splice(i,1);}}
-    for(let i=factoryBolts.length-1;i>=0;i--){if(!lp||factoryBolts[i].owner===lp){factoryBolts[i].update(players);if(factoryBolts[i].dead)factoryBolts.splice(i,1);}}
-    for(let i=factoryGears.length-1;i>=0;i--){if(!lp||factoryGears[i].owner===lp){factoryGears[i].update(players);if(factoryGears[i].dead)factoryGears.splice(i,1);}}
+    for(let i=firePebbles.length-1;i>=0;i--){firePebbles[i].update(players);if(firePebbles[i].dead)firePebbles.splice(i,1);}
+    for(let i=pristineRockets.length-1;i>=0;i--){pristineRockets[i].update(players);if(pristineRockets[i].dead)pristineRockets.splice(i,1);}
+    for(let i=factoryBolts.length-1;i>=0;i--){factoryBolts[i].update(players);if(factoryBolts[i].dead)factoryBolts.splice(i,1);}
+    for(let i=factoryGears.length-1;i>=0;i--){factoryGears[i].update(players);if(factoryGears[i].dead)factoryGears.splice(i,1);}
     for(let i=factoryZaps.length-1;i>=0;i--){factoryZaps[i].update(players);if(factoryZaps[i].dead)factoryZaps.splice(i,1);}
   }
   updateParticles();
   if(networkMode==='test'&&keys['KeyR']){players[1].damage=0;players[1].dead=false;players[1].x=curStage.spawnX[1]-players[1].w/2;players[1].y=150;players[1].vx=0;players[1].vy=0;}
   // Win condition
-  if(players[0].stocks<=0||players[1].stocks<=0){
-    if(players[0].stocks<=0&&players[1].stocks<=0)winner='Draw!';
-    else if(players[0].stocks<=0)winner=networkMode==='test'?'Dummy Wins?!':`P2 (${players[1].ch.name}) Wins!`;
-    else winner=`P1 (${players[0].ch.name}) Wins!`;
-    gameState='gameOver';gameOverTimer=180;
+  if(networkMode==='team4'){
+    const team1Alive=players.some(p=>p.team===1&&p.stocks>0);
+    const team2Alive=players.some(p=>p.team===2&&p.stocks>0);
+    if(!team1Alive||!team2Alive){
+      if(!team1Alive&&!team2Alive)winner='Draw!';
+      else if(!team1Alive)winner='Team 2 Wins! (P2 & P4)';
+      else winner='Team 1 Wins! (P1 & P3)';
+      gameState='gameOver';gameOverTimer=180;
+    }
+  } else {
+    if(players[0].stocks<=0||players[1].stocks<=0){
+      if(players[0].stocks<=0&&players[1].stocks<=0)winner='Draw!';
+      else if(players[0].stocks<=0)winner=networkMode==='test'?'Dummy Wins?!':`P2 (${players[1].ch.name}) Wins!`;
+      else winner=`P1 (${players[0].ch.name}) Wins!`;
+      gameState='gameOver';gameOverTimer=180;
+    }
   }
 }
 
 function resetMenu(){
   stopBgMusic();
-  gameState='modeSelect';selectStep=0;p1Sel=0;p2Sel=1;stageSel=0;p1Confirmed=false;charScrollY=0;stageScrollY=0;
+  gameState='modeSelect';selectStep=0;p1Sel=0;p2Sel=1;p3Sel=2;p4Sel=3;stageSel=0;p1Confirmed=false;charScrollY=0;stageScrollY=0;
+  team4Done=[false,false,false,false];
   confirmedChars={};
-  if(rtcPeer){rtcPeer.destroy();rtcPeer=null;}rtcConn=null;netConnected=false;networkMode='none';isHost=false;
+  networkMode='none';
   bullets.length=0;particles.length=0;miniSwords.length=0;rocketArms.length=0;rocketMines.length=0;smokeClouds.length=0;unstableHeads.length=0;knives.length=0;throwSwords.length=0;firePebbles.length=0;pristineRockets.length=0;factoryBolts.length=0;factoryGears.length=0;factoryZaps.length=0;
 }
 
@@ -5128,6 +5018,7 @@ function loop(){
   frame++;
   pollGamepads();
   ctx.clearRect(0,0,W,H);
+  if(gameState==='modeSelect'||gameState==='charSelect'||gameState==='stageSelect') playLobbyMusic();
   if(gameState==='modeSelect') drawModeSelect();
   else if(gameState==='charSelect') drawCharSelect();
   else if(gameState==='stageSelect') drawStageSelect();
@@ -5152,15 +5043,29 @@ function loop(){
     for(const b of bullets)b.draw();
     for(const p of players)p.draw();
     drawParticles();ctx.restore();
-    players[0].drawHUD('left');players[1].drawHUD('right');
+    if(networkMode==='team4'){
+      // Team 1 (P1,P3) on left; Team 2 (P2,P4) on right
+      players[0].drawHUD('left',0);players[2].drawHUD('left',1);
+      players[1].drawHUD('right',0);players[3].drawHUD('right',1);
+      // Team label banners
+      ctx.font='bold 11px monospace';ctx.textAlign='left';
+      ctx.fillStyle='rgba(51,153,255,0.6)';ctx.fillText('TEAM 1',14,H-6);
+      ctx.textAlign='right';ctx.fillStyle='rgba(255,102,68,0.6)';ctx.fillText('TEAM 2',W-14,H-6);
+    } else {
+      players[0].drawHUD('left');players[1].drawHUD('right');
+    }
     ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='10px monospace';ctx.textAlign='center';
     if(networkMode==='test') ctx.fillText('WASD+Mouse  |  Space: shield  |  R: reset dummy  |  ESC: exit test mode',W/2,H-6);
-    else if(networkMode==='none') ctx.fillText('P1: WASD+LClick+RClick(charge)+LShift(dash)+Q(shield)  |  P2: Arrows+Z/X(charge)+RShift(dash)+/(shield)',W/2,H-6);
-    else ctx.fillText(isHost?'You are P1 (Host)':'You are P2 (Guest)',W/2,H-6);
+    else if(networkMode==='team4') {/* team labels drawn above */}
+    else ctx.fillText('P1: WASD+LClick+RClick(charge)+LShift(dash)+Q(shield)  |  P2: Arrows+Z/X(charge)+RShift(dash)+/(shield)',W/2,H-6);
   }
   else if(gameState==='gameOver'){if(gameOverTimer>0)gameOverTimer--;drawGameOver();}
 
-  p1JumpPend=false;p2JumpPend=false;p1LightPend=false;p1HeavyPend=false;p2LightPend=false;p2HeavyPend=false;p1ShieldPend=false;p2ShieldPend=false;p1DashPend=false;p2DashPend=false;p1HeavyRelease=false;p2HeavyRelease=false;
+  p1JumpPend=false;p2JumpPend=false;p3JumpPend=false;p4JumpPend=false;
+  p1LightPend=false;p1HeavyPend=false;p2LightPend=false;p2HeavyPend=false;p3LightPend=false;p3HeavyPend=false;p4LightPend=false;p4HeavyPend=false;
+  p1ShieldPend=false;p2ShieldPend=false;p3ShieldPend=false;p4ShieldPend=false;
+  p1DashPend=false;p2DashPend=false;p3DashPend=false;p4DashPend=false;
+  p1HeavyRelease=false;p2HeavyRelease=false;p3HeavyRelease=false;p4HeavyRelease=false;
   requestAnimationFrame(loop);
 }
 loop();
