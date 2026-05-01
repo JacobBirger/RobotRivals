@@ -11,6 +11,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:mon
 #status{font-size:12px;color:#666;}
 #status.ok{color:#4c4;}
 #playerSel{background:#222;color:#fff;border:1px solid #555;font-family:monospace;font-size:13px;padding:2px 6px;border-radius:4px;}
+#refreshBtn{background:#222;color:#aaa;border:1px solid #555;font-family:monospace;font-size:13px;padding:2px 8px;border-radius:4px;cursor:pointer;}
+#refreshBtn:active{background:#333;color:#fff;}
 
 /* Main layout: left half = dpad zone, right half = buttons */
 #dpadZone{position:absolute;left:0;top:32px;width:45%;bottom:0;}
@@ -65,6 +67,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:mon
 <div id="topbar">
   <div id="status">Connecting...</div>
   <select id="playerSel"><option value="1">P1</option><option value="2">P2</option><option value="3">P3</option><option value="4">P4</option></select>
+  <button id="refreshBtn" onclick="location.reload()">↺</button>
 </div>
 
 <div id="dpadZone">
