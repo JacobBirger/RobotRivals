@@ -9,17 +9,21 @@ const PORT = 3000;
 // Serve static files
 const server = http.createServer((req, res) => {
   let filePath;
-  if (req.url === '/' || req.url === '/index.html') {
+  const url = req.url.split('?')[0]; // strip query string
+  if (url === '/' || url === '/index.html') {
     filePath = path.join(__dirname, 'index.html');
-  } else if (req.url === '/controller') {
+  } else if (url === '/controller') {
     filePath = path.join(__dirname, 'controller.html');
-  } else if (req.url.startsWith('/soundtrack/') || req.url.startsWith('/soundeffects/')) {
-    filePath = path.join(__dirname, req.url);
+  } else if (url.startsWith('/src/') || url.startsWith('/soundtrack/') || url.startsWith('/soundeffects/')) {
+    filePath = path.join(__dirname, url);
+  } else if (url === '/LobbyMusic.mp3') {
+    filePath = path.join(__dirname, 'LobbyMusic.mp3');
   } else {
     res.writeHead(404); res.end('Not found'); return;
   }
   const ext = path.extname(filePath);
   const mime = ext === '.html' ? 'text/html'
+    : ext === '.js' ? 'application/javascript'
     : ext === '.mp3' ? 'audio/mpeg'
     : ext === '.ogg' ? 'audio/ogg'
     : ext === '.wav' ? 'audio/wav'
