@@ -10,6 +10,7 @@ import { playLobbyMusic, playStageMusic, stopBgMusic } from './audio.js';
 import { pollGamepads, getInputForPn, initPhoneController, clearPendingFlags, keys } from './input.js';
 import { drawStageBG, drawStageGeom } from './stages/index.js';
 import { drawModeSelect, drawCharSelect, drawStageSelect, drawGameOver } from './menu.js';
+import { VIS_LEFT, VIS_RIGHT, VIS_TOP, VIS_BOT } from './player/constants.js';
 
 function startGame(){
   G.curStage=STAGES[G.stageSel];
@@ -118,6 +119,7 @@ function resetMenu(){
   G.team4Done=[false,false,false,false];
   G.confirmedChars={};
   G.networkMode='none';
+  G.bordersOn=false;
   bullets.length=0;particles.length=0;miniSwords.length=0;rocketArms.length=0;rocketMines.length=0;smokeClouds.length=0;unstableHeads.length=0;knives.length=0;throwSwords.length=0;firePebbles.length=0;pristineRockets.length=0;factoryBolts.length=0;factoryGears.length=0;factoryZaps.length=0;G.boulder=null;smallRocks.length=0;
 }
 
@@ -152,7 +154,18 @@ function loop(){
     if(G.boulder)G.boulder.draw();
     for(const sr of smallRocks)sr.draw();
     for(const p of G.players)p.draw();
-    drawParticles();ctx.restore();
+    drawParticles();
+    if(G.bordersOn){
+      const bw=8;
+      ctx.fillStyle='rgba(255,80,80,0.55)';
+      ctx.fillRect(VIS_LEFT-bw,VIS_TOP-bw,bw,VIS_BOT-VIS_TOP+bw*2);
+      ctx.fillRect(VIS_RIGHT,VIS_TOP-bw,bw,VIS_BOT-VIS_TOP+bw*2);
+      ctx.fillRect(VIS_LEFT-bw,VIS_TOP-bw,VIS_RIGHT-VIS_LEFT+bw*2,bw);
+      ctx.fillRect(VIS_LEFT-bw,VIS_BOT,VIS_RIGHT-VIS_LEFT+bw*2,bw);
+      ctx.strokeStyle='rgba(255,80,80,0.9)';ctx.lineWidth=2;
+      ctx.strokeRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
+    }
+    ctx.restore();
     for(const p of G.players)p.drawOffScreenIndicator();
     if(G.networkMode==='team4'){
       // Team 1 (P1,P3) on left; Team 2 (P2,P4) on right

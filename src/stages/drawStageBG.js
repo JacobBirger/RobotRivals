@@ -1,6 +1,7 @@
 import { ctx, W, H } from '../globals.js';
 import { G } from '../globals.js';
 import { rrFill, rrStroke, rrPath } from '../particles.js';
+import { VIS_LEFT, VIS_RIGHT, VIS_TOP, VIS_BOT } from '../player/constants.js';
 
 function drawStageBG(st){
   const gr=ctx.createLinearGradient(0,-60,0,H+60);gr.addColorStop(0,st.bgT);gr.addColorStop(1,st.bgB);ctx.fillStyle=gr;ctx.fillRect(-230,-40,W+460,H+80);
@@ -27,7 +28,7 @@ function drawStageBG(st){
     glow.addColorStop(0,`rgba(255,160,40,${pulse})`);
     glow.addColorStop(0.45,'rgba(255,80,0,0.32)');
     glow.addColorStop(1,'rgba(180,20,0,0)');
-    ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=glow;ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
     // Vertical heat shimmer columns
     for(let i=0;i<5;i++){
       const cx=120+i*180+Math.sin(G.frame*0.03+i)*8;
@@ -55,7 +56,7 @@ function drawStageBG(st){
       const ng=ctx.createRadialGradient(200+i*350,200+i*60,30,200+i*350,200+i*60,260);
       const cols=[['rgba(80,40,160,0.18)','rgba(80,40,160,0)'],['rgba(40,80,180,0.15)','rgba(40,80,180,0)'],['rgba(160,40,120,0.16)','rgba(160,40,120,0)']];
       ng.addColorStop(0,cols[i][0]);ng.addColorStop(1,cols[i][1]);
-      ctx.fillStyle=ng;ctx.fillRect(0,0,W,H);
+      ctx.fillStyle=ng;ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
     }
     // Dense starfield with parallax (multiple layers)
     for(let i=0;i<140;i++){
@@ -116,7 +117,7 @@ function drawStageBG(st){
     for(let i=0;i<=10;i++){const x=i*100,y=300+Math.sin(i*1.7)*50;ctx.lineTo(x,y);}
     ctx.lineTo(W,H);ctx.closePath();ctx.fill();
     // Smoke fog rising
-    const fog=ctx.createLinearGradient(0,200,0,H);fog.addColorStop(0,'rgba(40,65,25,0)');fog.addColorStop(1,'rgba(20,40,15,0.65)');ctx.fillStyle=fog;ctx.fillRect(0,0,W,H);
+    const fog=ctx.createLinearGradient(0,200,0,H);fog.addColorStop(0,'rgba(40,65,25,0)');fog.addColorStop(1,'rgba(20,40,15,0.65)');ctx.fillStyle=fog;ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
     // Falling sparks (welding particles)
     for(let i=0;i<22;i++){
       const sx=(i*191+30)%W;
@@ -131,7 +132,7 @@ function drawStageBG(st){
   } else if(st.id===3){
     // NEON CITY — heavy neon rain, parallax skyscrapers, holograms, lightning
     // Lightning flash (rare)
-    if(Math.floor(G.frame/5)%140<2){ctx.fillStyle='rgba(180,140,255,0.18)';ctx.fillRect(0,0,W,H);}
+    if(Math.floor(G.frame/5)%140<2){ctx.fillStyle='rgba(180,140,255,0.18)';ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);}
     // Rain (multiple layers, faster front)
     ctx.strokeStyle='rgba(180,100,255,0.25)';ctx.lineWidth=1.5;
     for(let i=0;i<70;i++){const rx=(i*233+G.frame*4)%W,ry=(i*97+G.frame*5)%(H+30);ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx-5,ry+22);ctx.stroke();}
@@ -207,13 +208,13 @@ function drawStageBG(st){
       ctx.beginPath();ctx.arc(sx,sy,sz,0,Math.PI*2);ctx.fill();
     }
     // Cold blue mist
-    const mist=ctx.createLinearGradient(0,0,0,H);mist.addColorStop(0,'rgba(180,220,255,0.08)');mist.addColorStop(1,'rgba(80,140,200,0.18)');ctx.fillStyle=mist;ctx.fillRect(0,0,W,H);
+    const mist=ctx.createLinearGradient(0,0,0,H);mist.addColorStop(0,'rgba(180,220,255,0.08)');mist.addColorStop(1,'rgba(80,140,200,0.18)');ctx.fillStyle=mist;ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
   } else if(st.id===5){
     // CLOUD TEMPLE — bright sky, big sun rays, layered cumulus, distant temple silhouettes
     // Sun
     const sunG=ctx.createRadialGradient(820,100,15,820,100,260);
     sunG.addColorStop(0,'rgba(255,250,200,0.9)');sunG.addColorStop(0.5,'rgba(255,210,80,0.45)');sunG.addColorStop(1,'rgba(255,170,40,0)');
-    ctx.fillStyle=sunG;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=sunG;ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
     ctx.fillStyle='#ffeebb';ctx.beginPath();ctx.arc(820,100,30,0,Math.PI*2);ctx.fill();
     // Sun rays (rotating)
     ctx.save();ctx.translate(820,100);ctx.rotate(G.frame*0.005);
@@ -263,7 +264,7 @@ function drawStageBG(st){
     lavaGlow.addColorStop(0,`rgba(255,200,40,${lp})`);
     lavaGlow.addColorStop(0.4,'rgba(255,80,0,0.55)');
     lavaGlow.addColorStop(1,'rgba(180,20,0,0)');
-    ctx.fillStyle=lavaGlow;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=lavaGlow;ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
     // Distant volcanic eruption silhouettes
     ctx.fillStyle='rgba(40,8,0,0.92)';
     ctx.beginPath();ctx.moveTo(0,H);ctx.lineTo(0,440);ctx.lineTo(150,360);ctx.lineTo(220,420);ctx.lineTo(380,300);ctx.lineTo(490,420);ctx.lineTo(620,330);ctx.lineTo(780,420);ctx.lineTo(900,370);ctx.lineTo(W,420);ctx.lineTo(W,H);ctx.closePath();ctx.fill();
@@ -302,7 +303,7 @@ function drawStageBG(st){
     const haze=ctx.createLinearGradient(0,H*0.3,0,H);haze.addColorStop(0,'rgba(255,80,0,0)');haze.addColorStop(1,'rgba(255,80,0,0.18)');ctx.fillStyle=haze;ctx.fillRect(0,H*0.3,W,H*0.7);
   } else if(st.id===7){
     // DATA REALM — heavy matrix rain, glowing grid, geometric pulses, glitch artifacts
-    ctx.fillStyle='rgba(0,15,0,0.5)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(0,15,0,0.5)';ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
     // Vertical matrix code rain (denser, layered)
     ctx.font='bold 12px monospace';
     for(let col=0;col<35;col++){
@@ -510,7 +511,7 @@ function drawStageBG(st){
     // Big moon (much larger, more detail)
     const moonG=ctx.createRadialGradient(820,110,15,820,110,200);
     moonG.addColorStop(0,'rgba(255,248,210,0.55)');moonG.addColorStop(1,'rgba(255,248,210,0)');
-    ctx.fillStyle=moonG;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=moonG;ctx.fillRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
     ctx.fillStyle='#f5ecd0';ctx.beginPath();ctx.arc(820,110,48,0,Math.PI*2);ctx.fill();
     // Moon craters
     ctx.fillStyle='rgba(180,170,140,0.5)';

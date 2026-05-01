@@ -30,6 +30,7 @@ export const G = {
   modeSelIdx: 0,
   mouseLeft: false,
   mouseRight: false,
+  bordersOn: false,
 };
 
 // Projectile arrays — exported as const (mutated in place, never replaced)

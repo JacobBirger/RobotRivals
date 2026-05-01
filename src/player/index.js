@@ -268,6 +268,15 @@ class Player {
     if(this.vy>MAX_FLY_SPEED)this.vy=MAX_FLY_SPEED; else if(this.vy<-MAX_FLY_SPEED)this.vy=-MAX_FLY_SPEED;
 
     this.y+=this.vy; this.x+=this.vx;
+
+    // Border walls: clamp position and zero velocity on the blocked axis
+    if(G.bordersOn){
+      if(this.x<VIS_LEFT){this.x=VIS_LEFT;if(this.vx<0)this.vx=0;}
+      if(this.right>VIS_RIGHT){this.x=VIS_RIGHT-this.w;if(this.vx>0)this.vx=0;}
+      if(this.y<VIS_TOP){this.y=VIS_TOP;if(this.vy<0)this.vy=0;}
+      if(this.bottom>VIS_BOT){this.y=VIS_BOT-this.h;if(this.vy>0)this.vy=0;}
+    }
+
     this.onGnd=false; this.onPlat=false;
 
     // Solid AABB collision for ground, grounds[], and plats[] (all directions block)

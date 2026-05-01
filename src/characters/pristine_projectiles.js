@@ -33,7 +33,7 @@ class PristineRocket {
       this.vx=this.vx/cur*this.speed; this.vy=this.vy/cur*this.speed;
     }
     this.x+=this.vx; this.y+=this.vy;
-    if(this.x<-100||this.x>W+100||this.y<-100||this.y>H+100){this.dead=true;return;}
+    if(this.x<VIS_LEFT-50||this.x>VIS_RIGHT+50||this.y<VIS_TOP-50||this.y>VIS_BOT+50){this.dead=true;return;}
     for(const p of G.players){
       if(p===this.owner||sameTeam(p,this.owner)||p.dead||p.hitImmune>0)continue;
       if(this.x>p.x-10&&this.x<p.right+10&&this.y>p.y-10&&this.y<p.bottom+10){

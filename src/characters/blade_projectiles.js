@@ -42,7 +42,7 @@ class FirePebble {
     if(this.explodeTimer>0){this.explodeTimer--;if(this.explodeTimer<=0)this.dead=true;return;}
     this.x+=this.vx;
     if(this.dist>=this.maxDist){if(this.linger){this.dead=true;return;}this.explode(players);return;}
-    if(this.x<-80||this.x>W+80||this.y<-80||this.y>H+80){this.dead=true;return;}
+    if(this.x<VIS_LEFT-50||this.x>VIS_RIGHT+50||this.y<VIS_TOP-50||this.y>VIS_BOT+50){this.dead=true;return;}
     for(const p of G.players){
       if(p===this.owner||sameTeam(p,this.owner)||p.dead)continue;
       if(p.laserShieldActive){
@@ -150,7 +150,7 @@ class Knife {
   update(players){
     if(this.dead)return;
     this.x+=this.vx;this.y+=this.vy;
-    if(this.dist>this.maxDist||this.x<-80||this.x>W+80||this.y<-80||this.y>H+80){this.dead=true;return;}
+    if(this.dist>this.maxDist||this.x<VIS_LEFT-50||this.x>VIS_RIGHT+50||this.y<VIS_TOP-50||this.y>VIS_BOT+50){this.dead=true;return;}
     for(const p of G.players){
       if(p===this.owner||sameTeam(p,this.owner)||p.dead)continue;
       if(p.shieldActive){
@@ -192,7 +192,7 @@ class ThrowSword {
   update(players){
     if(this.dead)return;
     this.x+=this.vx;this.rot+=0.22;
-    if(this.dist>this.maxDist||this.x<-80||this.x>W+80){this.dead=true;return;}
+    if(this.dist>this.maxDist||this.x<VIS_LEFT-50||this.x>VIS_RIGHT+50){this.dead=true;return;}
     for(const p of G.players){
       if(p===this.owner||sameTeam(p,this.owner)||p.dead)continue;
       if(p.shieldActive){

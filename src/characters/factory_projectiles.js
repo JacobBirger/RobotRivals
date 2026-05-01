@@ -1,4 +1,4 @@
-import { H, W, aabb, ctx, factoryBolts, factoryGears, factoryZaps, particles, rrFill, sameTeam } from '../globals.js';
+import { H, W, aabb, bullets, ctx, factoryBolts, factoryGears, factoryZaps, firePebbles, knives, particles, pristineRockets, rrFill, rocketArms, sameTeam, throwSwords } from '../globals.js';
 import { G } from '../globals.js';
 ;
 ;
@@ -40,7 +40,7 @@ class FactoryBolt {
       this.vx=Math.cos(newAngle)*spd; this.vy=Math.sin(newAngle)*spd;
     }
     this.x+=this.vx; this.y+=this.vy;
-    if(this.x<-120||this.x>W+120||this.y>H+120){this.dead=true;return;}
+    if(this.x<VIS_LEFT-50||this.x>VIS_RIGHT+50||this.y>VIS_BOT+50){this.dead=true;return;}
     // Enemy projectiles destroy the Bolt
     const pb0={x:this.x,y:this.y,w:this.w,h:this.h};
     for(const arr of [bullets,rocketArms,knives,throwSwords,firePebbles,pristineRockets,factoryBolts,factoryGears,factoryZaps]){

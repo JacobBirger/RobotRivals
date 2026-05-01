@@ -26,6 +26,7 @@ document.addEventListener('keydown', e => {
   else if (G.gameState==='stageSelect') G.menuStageKey(e.code==='KeyE'||e.code==='Period'?'Space':e.code);
   if (G.gameState==='gameOver' && (e.code==='Space'||e.code==='Enter'||e.code==='NumpadEnter')) G.resetMenu();
   if (e.code==='Escape' && G.gameState==='game' && G.networkMode==='test') G.resetMenu();
+  if (e.code==='KeyT' && G.gameState==='game') G.bordersOn=!G.bordersOn;
 });
 
 document.addEventListener('keyup', e => {

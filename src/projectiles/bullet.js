@@ -3,7 +3,7 @@ import { G } from '../globals.js';
 ;
 ;
 import { addHitParticles, instakill } from '../particles.js';
-import { MAX_KB, DEATH_THRESHOLD } from '../player/constants.js';
+import { MAX_KB, DEATH_THRESHOLD, VIS_LEFT, VIS_RIGHT, VIS_TOP, VIS_BOT } from '../player/constants.js';
 import { kbScale, playSfx } from '../audio.js';
 
 class Bullet {
@@ -19,7 +19,7 @@ class Bullet {
   update(players) {
     if (this.dead) return;
     this.x+=this.vx; this.y+=this.vy;
-    if (this.dist>this.maxDist||this.x<-60||this.x>W+60||this.y<-60||this.y>H+60) { this.dead=true; return; }
+    if (this.dist>this.maxDist||this.x<VIS_LEFT-50||this.x>VIS_RIGHT+50||this.y<VIS_TOP-50||this.y>VIS_BOT+50) { this.dead=true; return; }
     const bLen=(this.heavy?15:this.wide?12:9)*this.size, bWid=(this.heavy?5:this.wide?5:3)*this.size;
     for (const p of G.players) {
       if (p===this.owner||sameTeam(p,this.owner)||p.dead) continue;
