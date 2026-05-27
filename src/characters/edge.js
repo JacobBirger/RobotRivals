@@ -35,14 +35,25 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   const dir=atk?atk.dir:null,cn=atk&&atk.comboN||0;
   const heavy=atk&&atk.type==='heavy';
   const tAct=atk&&inAct?(atk.frame-atk.su)/Math.max(atk.act,1):0;
-  const bob=grounded?Math.sin(wf*Math.PI/2)*2:0,swing=grounded?Math.sin(wf*Math.PI/2)*6:0,by2=by+bob;
+  // Duelist stride: elegant upright walk, sword arm swings behind (opposite phase)
+  const bob=grounded?Math.sin(wf*Math.PI/2)*2:0;
+  // Sword arm swings counter-phase to body for a regal trailing-blade look
+  const swing=grounded?Math.sin(wf*Math.PI/2)*6:0;
+  const swordTrailSwing=grounded?Math.sin(wf*Math.PI/2+Math.PI*0.5)*4:0; // 90° phase offset
+  const by2=by+bob;
   const ll=grounded?(wf<2?5:-5):0;
+  // Aerial: legs cross at ankles (knightly falling pose), sword arm raises to guard
+  const airLegCross=grounded?0:8; // both legs shift inward
+  const airSwordGuard=grounded?0:0.4; // sword arm rotates up toward guard angle
+  const airBodyTilt=grounded?0:Math.sin(G.frame*0.06)*0.05; // subtle hover drift
   if(grounded){ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(0,h/2+3,w*0.44,5,0,0,Math.PI*2);ctx.fill();}
-  // Legs
-  rrFill(bx+6,by2+h*0.62,13,h*0.33+ll,4,ch.accent);rrFill(bx+w-19,by2+h*0.62,13,h*0.33-ll,4,ch.accent);
-  ctx.fillStyle='#222';ctx.beginPath();ctx.ellipse(bx+12,by2+h*0.94+ll/2,9,4,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#222';ctx.beginPath();ctx.ellipse(bx+w-12,by2+h*0.94-ll/2,9,4,0,0,Math.PI*2);ctx.fill();
-  // Body - slim, elegant
+  // Legs — cross inward when airborne for knightly falling pose
+  rrFill(bx+6+airLegCross,by2+h*0.62,13,h*0.33+ll,4,ch.accent);
+  rrFill(bx+w-19-airLegCross,by2+h*0.62,13,h*0.33-ll,4,ch.accent);
+  ctx.fillStyle='#222';ctx.beginPath();ctx.ellipse(bx+12+airLegCross,by2+h*0.94+ll/2,9,4,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#222';ctx.beginPath();ctx.ellipse(bx+w-12-airLegCross,by2+h*0.94-ll/2,9,4,0,0,Math.PI*2);ctx.fill();
+  // Body - slim, elegant; subtle drift tilt when airborne
+  if(!grounded){ctx.save();ctx.rotate(airBodyTilt);}
   rrFill(bx+6,by2+h*0.36,w-12,h*0.34,7,ch.color);
   // Energy trim lines
   ctx.strokeStyle=ch.eyeCol;ctx.lineWidth=2;ctx.globalAlpha=0.6;
@@ -54,7 +65,7 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   rrFill(-10,0,11,h*0.26,4,ch.color);ctx.fillStyle=ch.accent;ctx.beginPath();ctx.arc(-5,h*0.26,7,0,Math.PI*2);ctx.fill();ctx.restore();
   // Right arm + SWORD
   const hideSword=heavy&&dir==='up'&&inAct; // sword is thrown, not in hand
-  ctx.save();ctx.translate(bx+w-4,by2+h*0.38-swing*0.4);
+  ctx.save();ctx.translate(bx+w-4,by2+h*0.38-swordTrailSwing);
   let swordAng=0,swordTx=0,swordTy=0;
   if(inAct){
     if(heavy&&dir==='side'){swordAng=-Math.PI*0.75+tAct*Math.PI*1.5;swordTx=14;swordTy=-10+tAct*20;}
@@ -67,7 +78,7 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
     else if(dir==='down'){swordAng=1.5;swordTx=6;swordTy=10;}
     else{swordAng=-0.1+cn*0.15;swordTx=12+cn*2;}
     ctx.translate(swordTx,swordTy);ctx.rotate(swordAng);
-  }else{ctx.rotate(-swing*0.04);}
+  }else{ctx.rotate(-swordTrailSwing*0.03-airSwordGuard);}
   rrFill(0,0,11,h*0.26,4,ch.color);ctx.fillStyle=ch.accent;ctx.beginPath();ctx.arc(5,h*0.26,7,0,Math.PI*2);ctx.fill();
   // Draw sword from hand (hidden when thrown)
   if(!hideSword){
@@ -83,6 +94,7 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
     ctx.fillStyle=sCol;ctx.beginPath();ctx.moveTo(2,h*0.26+6+sLen);ctx.lineTo(8,h*0.26+6+sLen);ctx.lineTo(5,h*0.26+6+sLen+10);ctx.closePath();ctx.fill();
   }
   ctx.restore();
+  if(!grounded)ctx.restore(); // end aerial body tilt
   // Head (knight helmet)
   ctx.fillStyle=ch.color;ctx.beginPath();ctx.ellipse(0,by2+h*0.2,w*0.4,h*0.22,0,0,Math.PI*2);ctx.fill();
   rrFill(-w*0.38,by2+h*0.04,w*0.76,h*0.11,3,ch.accent);

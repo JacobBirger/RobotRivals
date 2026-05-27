@@ -28,9 +28,15 @@ export function onRespawn(player) {
   // no cleanup needed
 }
 
-export function draw(ctx,ch,w,h){
+export function draw(ctx,ch,w,h,atk,grounded){
   const bx=-w/2,by=-h/2;
-  ctx.fillStyle='rgba(0,0,0,0.2)';ctx.beginPath();ctx.ellipse(0,h/2+3,w*0.45,5,0,0,Math.PI*2);ctx.fill();
+  // Gentle idle sway — dummy never moves so it just rocks slowly
+  const sway=Math.sin(G.frame*0.022)*3;
+  const swayLean=Math.sin(G.frame*0.022)*0.04;
+  // Aerial: dummy tumbles like a ragdoll — spins slowly
+  const airSpin=grounded?0:G.frame*0.06;
+  ctx.fillStyle='rgba(0,0,0,0.2)';ctx.beginPath();ctx.ellipse(sway*0.3,h/2+3,w*0.45,5,0,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.rotate(swayLean+airSpin);
   rrFill(bx+8,by+h*0.65,w-16,h*0.3,4,'#555');
   rrFill(bx+4,by+h*0.35,w-8,h*0.35,6,'#666');
   rrFill(bx+2,by+h*0.3,w-4,h*0.1,3,'#777');
@@ -38,6 +44,7 @@ export function draw(ctx,ch,w,h){
   ctx.fillStyle='#444';ctx.beginPath();ctx.ellipse(0,by+h*0.2,w*0.25,h*0.1,0,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle='#333';ctx.lineWidth=1;
   for(let i=0;i<3;i++){rrPath(bx+8+i*10,by+h*0.48,7,5,1);ctx.stroke();}
+  ctx.restore();
 }
 
 

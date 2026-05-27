@@ -37,13 +37,18 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   const isSwing=!heavy&&inAct&&atk&&atk.comboN===3;
   const bob=grounded?Math.sin(wf*Math.PI/2)*2:0,swing=grounded?Math.sin(wf*Math.PI/2)*8:0,by2=by+bob;
   const ll=grounded?(wf<2?5:-5):0;
-  const lean=isSwing?(-0.1+tAct*0.25):(inAct&&(dir==='side'||dir==='neutral')?0.18:0);
+  // Spear-carrier run: body leans forward while grounded, spear tip angled ahead
+  const walkLean=grounded&&!atk?0.1:0;
+  // Aerial: body tips forward into dive pose, legs trail behind
+  const airDiveLean=grounded?0:0.18;
+  const airLegTrail=grounded?0:10; // legs trail back
+  const lean=isSwing?(-0.1+tAct*0.25):(inAct&&(dir==='side'||dir==='neutral')?0.18:(grounded?walkLean:airDiveLean));
   if(grounded){ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(0,h/2+3,w*0.44,5,0,0,Math.PI*2);ctx.fill();}
   ctx.save();ctx.rotate(lean);
-  // Legs
-  rrFill(bx+6,by2+h*0.63,13,h*0.32+ll,4,ch.accent);rrFill(bx+w-19,by2+h*0.63,13,h*0.32-ll,4,ch.accent);
-  ctx.fillStyle='#222';ctx.beginPath();ctx.ellipse(bx+12,by2+h*0.94+ll/2,9,5,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#222';ctx.beginPath();ctx.ellipse(bx+w-12,by2+h*0.94-ll/2,9,5,0,0,Math.PI*2);ctx.fill();
+  // Legs — trail behind body when airborne (lancer dive posture)
+  rrFill(bx+6-airLegTrail,by2+h*0.63,13,h*0.32+ll,4,ch.accent);rrFill(bx+w-19-airLegTrail,by2+h*0.63,13,h*0.32-ll,4,ch.accent);
+  ctx.fillStyle='#222';ctx.beginPath();ctx.ellipse(bx+12-airLegTrail,by2+h*0.94+ll/2,9,5,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#222';ctx.beginPath();ctx.ellipse(bx+w-12-airLegTrail,by2+h*0.94-ll/2,9,5,0,0,Math.PI*2);ctx.fill();
   // Torso (athletic)
   rrFill(bx+5,by2+h*0.35,w-10,h*0.35,7,ch.color);
   rrFill(bx+9,by2+h*0.37,w-18,h*0.08,3,ch.hi);
@@ -59,7 +64,10 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   rrFill(0,0,11,h*0.25,4,ch.color);ctx.fillStyle=ch.accent;ctx.beginPath();ctx.arc(5,h*0.25,7,0,Math.PI*2);ctx.fill();ctx.restore();
   // SPEAR (always visible, extends through body)
   const spearExt=inAct?20:0;
-  const spearAng=isSwing?(-Math.PI*0.75+tAct*Math.PI*1.5):dir==='up'?-Math.PI*0.5:(heavy&&dir==='down'&&inAct)?tAct*Math.PI*2:dir==='down'?Math.PI*0.4:0;
+  // Spear angled slightly forward while walking (readied carry position)
+  const spearWalkAng=grounded&&!atk?-0.15:0;
+  const spearAirAng=!grounded&&!atk?-0.08:0; // tip slightly up when airborne, ready to strike
+  const spearAng=isSwing?(-Math.PI*0.75+tAct*Math.PI*1.5):dir==='up'?-Math.PI*0.5:(heavy&&dir==='down'&&inAct)?tAct*Math.PI*2:dir==='down'?Math.PI*0.4:(grounded?spearWalkAng:spearAirAng);
   ctx.save();ctx.translate(0,by2+h*0.5);ctx.rotate(spearAng);
   // Shaft
   ctx.strokeStyle=ch.accent;ctx.lineWidth=5;ctx.lineCap='round';

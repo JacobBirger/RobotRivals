@@ -37,6 +37,15 @@ export function draw(ctx,ch,w,h,atk,grounded,wf,extra){
   const heavy=atk&&atk.type==='heavy';
   const tAct=atk&&inAct?(atk.frame-atk.su)/Math.max(atk.act,1):0;
   const bob=grounded?Math.sin(wf*Math.PI/2)*1.5:0, by2=by+bob;
+  // Teleport-step: at step transition (wf 0 and 2), body briefly displaces with glitch artifact
+  const stepGlitch=grounded&&!atk&&(wf===0||wf===2);
+  const glitchStepX=stepGlitch?(wf===0?4:-4):0;
+  const glitchStepAlpha=stepGlitch?0.4:0;
+  // Aerial: body glitches more intensely — random micro-teleports and signal-loss flickers
+  const airGlitch=!grounded&&!atk;
+  const airGlitchX=0;
+  const airGlitchY=0;
+  const airFootGlow=!grounded; // feet pulse with teleport energy
   const ghost=extra.glitchGhost||false;
   const phased=extra.glitchPhaseTimer>0;
   const gw=extra.glitchWeapon;
@@ -60,14 +69,26 @@ export function draw(ctx,ch,w,h,atk,grounded,wf,extra){
   // Shadow
   if(grounded&&!ghost){ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(0,h/2+4,w*0.44,5,0,0,Math.PI*2);ctx.fill();}
 
+  // Teleport-step ghost: faint afterimage offset opposite direction of glitch snap
+  if(stepGlitch){
+    ctx.save();ctx.globalAlpha=glitchStepAlpha;ctx.translate(-glitchStepX*2,0);
+    ctx.fillStyle=ch.color;rrPath(bx+4,by2+h*0.36,w-8,h*0.38,9);ctx.fill();
+    ctx.restore();
+  }
+  // Apply glitch step OR aerial glitch displacement to whole character
+  if(stepGlitch){ctx.save();ctx.translate(glitchStepX,0);}
+  else if(airGlitch){ctx.save();ctx.translate(airGlitchX,airGlitchY);}
+
   // Legs (thin, fast)
   const ll=grounded?(wf<2?3:-3):0;
   rrFill(bx+5,by2+h*0.68,12,h*0.28+ll,4,ch.accent);
   rrFill(bx+w-17,by2+h*0.68,12,h*0.28-ll,4,ch.accent);
-  // Foot glow
-  ctx.fillStyle=ch.accent;
+  // Foot glow — pulses with teleport energy when airborne
+  if(airFootGlow){ctx.save();ctx.shadowBlur=14+Math.sin(G.frame*0.3)*6;ctx.shadowColor=ch.eyeCol;}
+  ctx.fillStyle=airFootGlow?ch.eyeCol:ch.accent;
   ctx.beginPath();ctx.ellipse(bx+11,by2+h*0.96+ll/2,10,4,0,0,Math.PI*2);ctx.fill();
   ctx.beginPath();ctx.ellipse(bx+w-11,by2+h*0.96-ll/2,10,4,0,0,Math.PI*2);ctx.fill();
+  if(airFootGlow){ctx.restore();}
 
   // Body (sleek, thin robot)
   rrFill(bx+4,by2+h*0.36,w-8,h*0.38,9,ch.color);
@@ -255,6 +276,7 @@ export function draw(ctx,ch,w,h,atk,grounded,wf,extra){
   }
 
   if(glitchFlicker) ctx.restore();
+  if(stepGlitch||airGlitch) ctx.restore(); // end step/air glitch displacement
   ctx.shadowBlur=0; ctx.globalAlpha=1;
 }
 

@@ -35,8 +35,18 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   const dir=atk?atk.dir:null;
   const heavy=atk&&atk.type==='heavy';
   const tAct=atk&&inAct?(atk.frame-atk.su)/Math.max(atk.act,1):0;
+  // Stumble walk: irregular step heights, random arm droop, occasional lurch
   const bob=grounded?Math.sin(wf*Math.PI/2)*2:0, by2=by+bob;
-  const ll=grounded?(wf<2?5:-5):0;
+  // Randomize leg step with a slow noise-like offset per wf phase
+  const llBase=grounded?(wf<2?5:-5):0;
+  const llNoise=grounded?Math.sin(G.frame*0.31+wf*1.7)*1.8:0; // slow wobble on top
+  const ll=llBase+llNoise;
+  // Random arm droop angles that shift slowly
+  const armDroopL=Math.sin(G.frame*0.13)*0.18+0.08;
+  const armDroopR=Math.sin(G.frame*0.17+1.2)*0.15-0.05;
+  // Aerial: body tumbles erratically, parts flail, smoke trails behind
+  const airTumble=grounded?0:Math.sin(G.frame*0.09)*0.15+Math.cos(G.frame*0.14)*0.08;
+  const airFlail=grounded?0:Math.sin(G.frame*0.22)*12; // arms flail wildly
   const isDash=!heavy&&inAct&&(dir==='side'||dir==='neutral');
   const isExploding=heavy&&inAct&&dir==='down';
   const headGone=!heavy&&inAct&&dir==='up';
@@ -89,7 +99,7 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   ctx.beginPath();ctx.moveTo(bx+w-10,by2+h*0.64);ctx.lineTo(bx+w-5,by2+h*0.68);ctx.stroke();
 
   // ── TORSO ──
-  ctx.save();ctx.translate(jx*0.6,jy*0.4);
+  ctx.save();ctx.translate(jx*0.6,jy*0.4);ctx.rotate(airTumble);
   rrFill(bx+4,by2+h*0.32,w-8,h*0.39,8,ch.color);
   // Highlight strip (slightly skewed)
   ctx.save();ctx.translate(bx+8,by2+h*0.34);ctx.rotate(0.04);
@@ -191,9 +201,9 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
 
   // ── ARMS ──
   const armLX=bx-3, armRX=bx+w+3, armY=by2+h*0.38;
-  // Left arm: drooping, cracked, with occasional spark at hand
-  ctx.save();ctx.translate(armLX+jx*0.5,armY+4+jy*0.5);
-  ctx.rotate(-0.14+Math.sin(G.frame*0.09)*0.035);
+  // Left arm: drooping, cracked, with occasional spark at hand; flails when airborne
+  ctx.save();ctx.translate(armLX+jx*0.5,armY+4+jy*0.5+airFlail*0.5);
+  ctx.rotate(-0.14+armDroopL+Math.sin(G.frame*0.09)*0.035+(grounded?0:airFlail*0.03));
   rrFill(-15,0,14,h*0.30,5,ch.color);
   ctx.strokeStyle='#ff4466';ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(-8,h*0.08);ctx.lineTo(-5,h*0.19);ctx.stroke();
@@ -203,10 +213,10 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
     ctx.beginPath();ctx.arc(-8+(Math.random()*4-2),h*0.33,2,0,Math.PI*2);ctx.fill();
   }
   ctx.restore();
-  // Right arm: stubby, extends on side heavy
-  ctx.save();ctx.translate(armRX+jx*0.3,armY-2+jy*0.3);
+  // Right arm: stubby, extends on side heavy; flails opposite to left when airborne
+  ctx.save();ctx.translate(armRX+jx*0.3,armY-2+jy*0.3-airFlail*0.5);
   if(inAct&&heavy&&(dir==='side'||dir==='neutral'))ctx.translate(22,0);
-  ctx.rotate(0.1+Math.sin(G.frame*0.1+1.2)*0.03);
+  ctx.rotate(0.1+armDroopR+Math.sin(G.frame*0.1+1.2)*0.03+(grounded?0:-airFlail*0.03));
   rrFill(0,0,14,h*0.26,5,ch.color);
   ctx.fillStyle=ch.accent;ctx.beginPath();ctx.ellipse(7,h*0.26,8,6,-0.12,0,Math.PI*2);ctx.fill();
   ctx.restore();

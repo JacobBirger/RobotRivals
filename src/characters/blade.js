@@ -38,16 +38,24 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   const tSU=atk&&inSU?atk.frame/Math.max(atk.su,1):0;
   const half=atk?Math.floor(atk.act/2):0;
   const phase2=atk&&inAct&&atk.frame>=atk.su+half;
-  const bob=grounded?Math.sin(wf*Math.PI/2)*2:0,swing=grounded?Math.sin(wf*Math.PI/2)*7:0,by2=by+bob;
-  const ll=grounded?(wf<2?5:-5):0;
+  // Crouched knife-ready walk: low center of gravity, subtle bob, body sunk 4px
+  const crouchOffset=grounded&&!atk?4:0;
+  const bob=grounded?Math.sin(wf*Math.PI/2)*1.2:0;
+  const swing=grounded?Math.sin(wf*Math.PI/2)*5:0;
+  const by2=by+bob+crouchOffset;
+  const ll=grounded?(wf<2?4:-4):0;
+  // Aerial: both arms extend forward with knives raised, legs tuck tight
+  const airKnifeReady=grounded?0:1; // flag: raise knives into forward-ready position
+  const airLegTuck=grounded?0:7; // legs pull up
+  const airBodyHunch=grounded?0:-3; // body hunches forward
   if(grounded){ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(0,h/2+3,w*0.43,5,0,0,Math.PI*2);ctx.fill();}
-  // Legs
-  rrFill(bx+5,by2+h*0.65,12,h*0.3+ll,4,ch.accent);rrFill(bx+w-17,by2+h*0.65,12,h*0.3-ll,4,ch.accent);
-  ctx.fillStyle='#112233';ctx.beginPath();ctx.ellipse(bx+11,by2+h*0.94+ll/2,8,4,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#112233';ctx.beginPath();ctx.ellipse(bx+w-11,by2+h*0.94-ll/2,8,4,0,0,Math.PI*2);ctx.fill();
-  // Torso (slim)
-  rrFill(bx+5,by2+h*0.35,w-10,h*0.36,7,ch.color);
-  rrFill(bx+8,by2+h*0.37,w-16,h*0.08,3,ch.hi);
+  // Legs — tuck up when airborne (knife-ready crouch)
+  rrFill(bx+5,by2+h*0.65-airLegTuck,12,h*0.3+ll,4,ch.accent);rrFill(bx+w-17,by2+h*0.65-airLegTuck,12,h*0.3-ll,4,ch.accent);
+  ctx.fillStyle='#112233';ctx.beginPath();ctx.ellipse(bx+11,by2+h*0.94+ll/2-airLegTuck,8,4,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#112233';ctx.beginPath();ctx.ellipse(bx+w-11,by2+h*0.94-ll/2-airLegTuck,8,4,0,0,Math.PI*2);ctx.fill();
+  // Torso (slim) — hunch forward when airborne
+  rrFill(bx+5,by2+h*0.35+airBodyHunch,w-10,h*0.36,7,ch.color);
+  rrFill(bx+8,by2+h*0.37+airBodyHunch,w-16,h*0.08,3,ch.hi);
   // Eye
   ctx.fillStyle=inAct?ch.eyeCol:'#001122';ctx.beginPath();ctx.arc(0,by2+h*0.52,5,0,Math.PI*2);ctx.fill();
   // Helper: draw a knife shape
@@ -58,13 +66,14 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
     ctx.fillStyle=ch.accent;ctx.fillRect(-8,-2,4,4);
     ctx.shadowBlur=0;ctx.restore();
   };
-  // Left arm + knife
+  // Left arm + knife — arm extends forward, knife angled ahead when airborne
   const isSideLight=!heavy&&(dir==='side'||dir==='neutral');
-  const lkAng=inAct&&!heavy&&dir==='down'?(-Math.PI*0.65+tAct*Math.PI*0.95):inAct&&!heavy&&dir==='up'?-Math.PI*0.65:inSU&&isSideLight?-Math.PI*0.45*tSU:inSU&&!heavy&&dir==='down'?-Math.PI*0.65*tSU:0;
-  ctx.save();ctx.translate(bx+2,by2+h*0.4+swing*0.4);
+  const lkAng=inAct&&!heavy&&dir==='down'?(-Math.PI*0.65+tAct*Math.PI*0.95):inAct&&!heavy&&dir==='up'?-Math.PI*0.65:inSU&&isSideLight?-Math.PI*0.45*tSU:inSU&&!heavy&&dir==='down'?-Math.PI*0.65*tSU:(airKnifeReady?-Math.PI*0.25:0);
+  ctx.save();ctx.translate(bx+2,by2+h*0.4+swing*0.4+airBodyHunch);
   if(inSU&&isSideLight){ctx.translate(-4*tSU,0);}
+  if(airKnifeReady&&!atk){ctx.translate(-5,-4);} // arm pushes forward in air
   rrFill(-13,0,13,h*0.25,4,ch.color);ctx.fillStyle=ch.accent;ctx.beginPath();ctx.arc(-6,h*0.25,7,0,Math.PI*2);ctx.fill();ctx.restore();
-  drawKnife(bx-4,by2+h*0.5+swing*0.4,lkAng,inAct&&isSideLight?16:12,inAct&&isSideLight);
+  drawKnife(bx-4+(airKnifeReady&&!atk?-5:0),by2+h*0.5+swing*0.4+airBodyHunch,lkAng,inAct&&isSideLight?16:12,inAct&&isSideLight);
   // Right arm + knife (or combined sword for side heavy swing phase)
   const isSwing=heavy&&inAct&&(dir==='side'||dir==='neutral')&&!phase2;
   const isCombined=isSwing;

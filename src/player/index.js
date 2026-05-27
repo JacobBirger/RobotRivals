@@ -8,7 +8,7 @@ import { SmokeCloud, UnstableHead } from '../characters/unstable_projectiles.js'
 import { Knife, ThrowSword, FirePebble } from '../characters/blade_projectiles.js';
 import { PristineRocket } from '../characters/pristine_projectiles.js';
 import { FactoryBolt, FactoryGear, FactoryZap, drawGearShape } from '../characters/factory_projectiles.js';
-import { MAX_KB, DEATH_THRESHOLD, FLY_ACCEL, MAX_FLY_SPEED, FLY_FRIC, GRAB_RANGE, GRAB_LOCKOUT_FRAMES, GRAB_AUTO_RELEASE_FRAMES, GRAB_WHIFF_CD, SHIELD_FRAMES, SHIELD_COOLDOWN, DASH_FRAMES, DASH_COOLDOWN, DASH_MULT, OFF_SCREEN_KILL_FRAMES, CAM_SCALE_X, CAM_SCALE_Y, VIS_LEFT, VIS_RIGHT, VIS_TOP, VIS_BOT, BOULDER_RADIUS, SMALL_ROCK_RADIUS, SMALL_ROCK_DMG, THROW_BOOST, THROW_FORWARD_SPEED } from './constants.js';
+import { MAX_KB, DEATH_THRESHOLD, FLY_ACCEL, MAX_FLY_SPEED, FLY_FRIC, GRAB_RANGE, GRAB_LOCKOUT_FRAMES, GRAB_AUTO_RELEASE_FRAMES, GRAB_WHIFF_CD, SHIELD_FRAMES, SHIELD_COOLDOWN, DASH_FRAMES, DASH_COOLDOWN, DASH_MULT, OFF_SCREEN_KILL_FRAMES, CAM_SCALE_X, CAM_SCALE_Y, VIS_LEFT, VIS_RIGHT, VIS_TOP, VIS_BOT, BOULDER_RADIUS, SMALL_ROCK_RADIUS, SMALL_ROCK_DMG, THROW_BOOST, THROW_FORWARD_SPEED, BOOST_MAX, BOOST_SPEED_MULT } from './constants.js';
 import { kbScale, playSfx, playSfxNoise, sfxSwing, sfxHit } from '../audio.js';
 import { charModules } from '../characters/index.js';
 import { drawCharacter, drawAttackArc } from './draw.js';
@@ -31,6 +31,8 @@ class Player {
     this.comboPend=false;
     // Dash
     this.dashActive=false; this.dashTimer=0; this.dashCD=0;
+    // Boost
+    this.boostActive=false; this.boostFuel=BOOST_MAX;
     // Charge heavy
     this.charging=false; this.chargeTime=0; this.chargeDir='side';
     // CRUSHER heavy cooldowns
@@ -235,29 +237,45 @@ class Player {
     const free=this.hstun===0&&!this.isDummy&&!this.shieldActive;
     const inAtk=this.atk&&this.atk.frame<this.atk.su+this.atk.act;
 
-    // Dash system (8-directional aerial boost)
+    // Dash system (8-directional aerial burst)
     if(this.dashCD>0) this.dashCD--;
-    if(inp.dash&&!this.dashActive&&this.dashCD===0&&free&&!this.atk&&!this.charging){
+    if(inp.dash&&!inp.hold&&!this.dashActive&&this.dashCD===0&&free&&!this.atk&&!this.charging){
       this.dashActive=true; this.dashTimer=DASH_FRAMES;
       const ds=this.ch.speed*DASH_MULT;
       let dx=(inp.right?1:0)-(inp.left?1:0);
       let dy=(inp.down?1:0)-(inp.up?1:0);
-      if(dx===0&&dy===0) dx=this.facing; // default: forward dash
+      if(dx===0&&dy===0) dx=this.facing;
       const len=Math.hypot(dx,dy)||1;
       this.vx=(dx/len)*ds; this.vy=(dy/len)*ds;
       if(dx!==0&&!inAtk) this.facing=dx>0?1:-1;
     }
     if(this.dashActive){this.dashTimer--;this.vx*=0.88;this.vy*=0.88;if(this.dashTimer<=0){this.dashActive=false;this.dashCD=DASH_COOLDOWN;}}
 
+    // Boost system: drain while held, recharge at same rate when not held. No lock-out.
+    if(inp.boost&&!inp.hold&&free&&this.boostFuel>0){
+      this.boostActive=true;
+      this.boostFuel--;
+    } else {
+      this.boostActive=false;
+      if(this.boostFuel<BOOST_MAX) this.boostFuel++;
+    }
+
     // Flight movement: thrust on held direction, momentum drift otherwise
+    const speedCap=this.ch.speed*(this.boostActive?BOOST_SPEED_MULT:1);
     if(free&&!this.dashActive&&!this.charging){
-      if(inp.left){this.vx=Math.max(this.vx-FLY_ACCEL,-this.ch.speed);if(!inAtk)this.facing=-1;}
-      else if(inp.right){this.vx=Math.min(this.vx+FLY_ACCEL,this.ch.speed);if(!inAtk)this.facing=1;}
-      else{this.vx*=FLY_FRIC;if(Math.abs(this.vx)<0.05)this.vx=0;}
-      const vCap=this.ch.speed*0.9;
-      if(inp.up){this.vy=Math.max(this.vy-FLY_ACCEL,-vCap);}
-      else if(inp.down){this.vy=Math.min(this.vy+FLY_ACCEL,vCap);}
-      else{this.vy*=FLY_FRIC;if(Math.abs(this.vy)<0.05)this.vy=0;}
+      if(!inp.hold){
+        if(inp.left){this.vx=Math.max(this.vx-FLY_ACCEL,-speedCap);if(!inAtk)this.facing=-1;}
+        else if(inp.right){this.vx=Math.min(this.vx+FLY_ACCEL,speedCap);if(!inAtk)this.facing=1;}
+        else{this.vx*=0.88;if(Math.abs(this.vx)<0.05)this.vx=0;}
+        const vCap=speedCap*0.9;
+        if(inp.up){this.vy=Math.max(this.vy-FLY_ACCEL,-vCap);}
+        else if(inp.down){this.vy=Math.min(this.vy+FLY_ACCEL,vCap);}
+        else{this.vy*=0.88;if(Math.abs(this.vy)<0.05)this.vy=0;}
+      } else {
+        // hold active: instant stop, but allow facing change
+        this.vx=0; this.vy=0;
+        if(!inAtk){if(inp.left)this.facing=-1;else if(inp.right)this.facing=1;}
+      }
     } else if(!this.dashActive&&!this.charging){
       this.vx*=FLY_FRIC; this.vy*=FLY_FRIC;
     }
@@ -266,6 +284,20 @@ class Player {
     // Clamp speed
     if(this.vx>MAX_FLY_SPEED)this.vx=MAX_FLY_SPEED; else if(this.vx<-MAX_FLY_SPEED)this.vx=-MAX_FLY_SPEED;
     if(this.vy>MAX_FLY_SPEED)this.vy=MAX_FLY_SPEED; else if(this.vy<-MAX_FLY_SPEED)this.vy=-MAX_FLY_SPEED;
+
+    // Boost particle trail
+    if(this.boostActive&&G.frame%2===0){
+      const spd=Math.hypot(this.vx,this.vy)||1;
+      for(let i=0;i<2;i++){
+        const spread=(Math.random()-0.5)*8;
+        const px=-this.vx/spd, py=-this.vy/spd;
+        const perp={x:-py,y:px};
+        particles.push({x:this.cx+perp.x*spread,y:this.cy+this.h*0.1+perp.y*spread,
+          vx:px*(2+Math.random()*2)+(Math.random()-0.5)*1.5,
+          vy:py*(2+Math.random()*2)+(Math.random()-0.5)*1.5,
+          life:18,max:18,col:Math.random()<0.5?'#aaddff':'#ffffff',sz:3+Math.random()*3});
+      }
+    }
 
     this.y+=this.vy; this.x+=this.vx;
 
@@ -1367,6 +1399,7 @@ class Player {
     this.grabT=0;}
   doRespawn(){
     this.dead=false;this.x=this.spawnX-this.w/2;this.y=180;this.vx=this.vy=0;this.jLeft=2;this.onGnd=false;this.onPlat=false;this.offScreenTimer=0;
+    this.boostActive=false;this.boostFuel=BOOST_MAX;
     // Release any grab partner: if I died while holding/being held, free the other side
     if(this.grabbedBy){this.grabbedBy.grabbing=null;this.grabbedBy.grabT=0;}
     if(this.grabbing){this.grabbing.grabbedBy=null;this.grabbing.grabT=0;}
@@ -1639,18 +1672,19 @@ class Player {
     const ch=this.ch;
     const spd=Math.hypot(this.vx,this.vy);
     const speeding=spd>0.5;
-    const boosting=this.dashActive;
+    const boosting=this.boostActive;
+    const dashing=this.dashActive;
     // Thrust direction in world frame: opposite to velocity. Hover -> straight down.
     let tx,ty;
     if(speeding){tx=-this.vx/spd; ty=-this.vy/spd;}
     else{tx=0; ty=1;}
-    // Flame intensity scales with speed and dash
-    const intens = boosting ? 1.4 : Math.min(1, spd/MAX_FLY_SPEED + 0.18);
+    // Flame intensity scales with speed; boost makes it extra intense
+    const intens = boosting ? 2.0 : dashing ? 1.4 : Math.min(1, spd/MAX_FLY_SPEED + 0.18);
     if(intens<0.2) return;
     // Size scaling: average of width/height vs a 46x58 baseline (BOLT)
     const sizeScale = ((this.w/46) + (this.h/58)) * 0.5;
-    const len = ((boosting?56:32) + spd*2.6) * sizeScale;
-    const wid = ((boosting?18:13) + spd*0.7) * sizeScale;
+    const len = ((boosting?90:dashing?56:32) + spd*2.6) * sizeScale;
+    const wid = ((boosting?28:dashing?18:13) + spd*0.7) * sizeScale;
     const flicker = 0.7 + Math.random()*0.4;
     // Two emitters near the bottom-rear of the character (left & right thruster nozzles)
     const offset = this.w*0.22;
@@ -1666,18 +1700,30 @@ class Player {
       const ex=sx+tx*len*flicker, ey=sy+ty*len*flicker;
       // Outer glow
       const grad=ctx.createLinearGradient(sx,sy,ex,ey);
-      grad.addColorStop(0,`rgba(255,210,120,${0.55*intens})`);
-      grad.addColorStop(0.5,`rgba(255,140,40,${0.35*intens})`);
-      grad.addColorStop(1,'rgba(255,60,0,0)');
+      if(boosting){
+        grad.addColorStop(0,`rgba(140,200,255,${0.7*intens})`);
+        grad.addColorStop(0.5,`rgba(80,140,255,${0.45*intens})`);
+        grad.addColorStop(1,'rgba(40,80,255,0)');
+      } else {
+        grad.addColorStop(0,`rgba(255,210,120,${0.55*intens})`);
+        grad.addColorStop(0.5,`rgba(255,140,40,${0.35*intens})`);
+        grad.addColorStop(1,'rgba(255,60,0,0)');
+      }
       ctx.strokeStyle=grad;
       ctx.lineWidth=wid*1.8;
       ctx.lineCap='round';
       ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
       // Inner core
       const grad2=ctx.createLinearGradient(sx,sy,ex,ey);
-      grad2.addColorStop(0,`rgba(255,255,240,${0.85*intens})`);
-      grad2.addColorStop(0.6,`rgba(255,200,120,${0.5*intens})`);
-      grad2.addColorStop(1,'rgba(255,120,40,0)');
+      if(boosting){
+        grad2.addColorStop(0,`rgba(240,250,255,${0.95*intens})`);
+        grad2.addColorStop(0.6,`rgba(160,220,255,${0.6*intens})`);
+        grad2.addColorStop(1,'rgba(80,160,255,0)');
+      } else {
+        grad2.addColorStop(0,`rgba(255,255,240,${0.85*intens})`);
+        grad2.addColorStop(0.6,`rgba(255,200,120,${0.5*intens})`);
+        grad2.addColorStop(1,'rgba(255,120,40,0)');
+      }
       ctx.strokeStyle=grad2;
       ctx.lineWidth=wid*0.7;
       ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
@@ -1764,6 +1810,14 @@ class Player {
     } else {
       ctx.fillStyle='#66aaff';ctx.beginPath();ctx.arc(x+bw-14,shieldY,shieldR,0,Math.PI*2);ctx.fill();
     }
+    // Boost fuel bar: blue = charged, drains while boosting, refills when not
+    const barX=x+10, barY=y+bh-10, barW=bw-20, barH=5;
+    const fuelPct=this.boostFuel/BOOST_MAX;
+    ctx.fillStyle='#112233';ctx.beginPath();ctx.roundRect(barX,barY,barW,barH,2);ctx.fill();
+    if(this.boostActive){ctx.shadowBlur=8;ctx.shadowColor='#66aaff';}
+    ctx.fillStyle=this.boostActive?'#aaddff':fuelPct<0.25?'#ff8800':'#4488cc';
+    ctx.beginPath();ctx.roundRect(barX,barY,barW*fuelPct,barH,2);ctx.fill();
+    ctx.shadowBlur=0;
   }
 }
 

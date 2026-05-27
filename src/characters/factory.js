@@ -36,24 +36,32 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   const dir=atk?atk.dir:null;
   const heavy=atk&&atk.type==='heavy';
   const tAct=atk&&inAct?(atk.frame-atk.su)/Math.max(atk.act,1):0;
-  const bob=grounded?Math.sin(wf*Math.PI/2)*2:0, by2=by+bob;
+  // Mechanical march: snapped square-wave leg positions instead of smooth sine
+  const marchSnap=grounded?Math.sign(Math.sin(wf*Math.PI/2)):0;
+  const bob=grounded?marchSnap*1.5:0, by2=by+bob;
+  // Aerial: pistons fully extend downward, body pitches forward slightly
+  const airPistonExt=grounded?0:14; // legs push fully out
+  const airBodyPitch=grounded?0:Math.sin(G.frame*0.05)*0.05+0.04; // nose-down
+  const airSmokeRate=!grounded&&G.frame%8===0; // smoke puffs from stacks while airborne
 
   // Shadow
   if(grounded){ctx.fillStyle='rgba(0,0,0,0.34)';ctx.beginPath();ctx.ellipse(0,h/2+5,w*0.54,7,0,0,Math.PI*2);ctx.fill();}
 
-  // Legs (heavy pistons)
+  // Legs (heavy pistons) — extend fully downward when airborne
   const ll=grounded?(wf<2?5:-5):0;
-  rrFill(bx+6,by2+h*0.67,20,h*0.28+ll,6,ch.accent);
-  rrFill(bx+w-26,by2+h*0.67,20,h*0.28-ll,6,ch.accent);
+  rrFill(bx+6,by2+h*0.67,20,h*0.28+ll+airPistonExt,6,ch.accent);
+  rrFill(bx+w-26,by2+h*0.67,20,h*0.28-ll+airPistonExt,6,ch.accent);
   // Foot pads
-  rrFill(bx+2,by2+h*0.92+ll/2,28,10,4,'#222');
-  rrFill(bx+w-30,by2+h*0.92-ll/2,28,10,4,'#222');
+  rrFill(bx+2,by2+h*0.92+ll/2+airPistonExt,28,10,4,'#222');
+  rrFill(bx+w-30,by2+h*0.92-ll/2+airPistonExt,28,10,4,'#222');
   // Piston rods
+  const pistonExt=grounded?(wf<2?h*0.87:h*0.83):h*0.87+airPistonExt;
   ctx.strokeStyle='#555';ctx.lineWidth=3;
-  ctx.beginPath();ctx.moveTo(bx+16,by2+h*0.71);ctx.lineTo(bx+16,by2+h*0.87);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(bx+w-16,by2+h*0.71);ctx.lineTo(bx+w-16,by2+h*0.87);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(bx+16,by2+h*0.71);ctx.lineTo(bx+16,by2+pistonExt);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(bx+w-16,by2+h*0.71);ctx.lineTo(bx+w-16,by2+(grounded?(pistonExt===h*0.87?h*0.83:h*0.87):pistonExt));ctx.stroke();
 
-  // Body (large industrial block)
+  // Body — pitch forward when airborne
+  if(!grounded){ctx.save();ctx.rotate(airBodyPitch);}
   rrFill(bx+2,by2+h*0.31,w-4,h*0.43,8,ch.color);
   // Vertical armor ridges
   ctx.strokeStyle=ch.accent;ctx.lineWidth=2;
@@ -89,8 +97,8 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   // Exhaust stacks on top
   rrFill(bx+8,by2-10,9,14,3,'#333');
   rrFill(bx+w-17,by2-10,9,14,3,'#333');
-  // Stack smoke puffs
-  if(grounded&&wf%2===0){ctx.fillStyle='rgba(120,120,120,0.3)';ctx.beginPath();ctx.arc(bx+12,by2-14,5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(bx+w-13,by2-14,5,0,Math.PI*2);ctx.fill();}
+  // Stack smoke puffs — also emit when airborne
+  if(grounded&&wf%2===0||airSmokeRate){ctx.fillStyle='rgba(120,120,120,0.3)';ctx.beginPath();ctx.arc(bx+12,by2-14,5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(bx+w-13,by2-14,5,0,Math.PI*2);ctx.fill();}
   // Eyes
   const eyeGlow=inAct;
   ctx.fillStyle=eyeGlow?ch.eyeCol:'#1a3344';
@@ -99,6 +107,7 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   rrFill(bx+w-30,by2+h*0.08,20,11,3,eyeGlow?ch.eyeCol:'#1a3344');
   if(eyeGlow){ctx.restore();}
   ctx.shadowBlur=0;
+  if(!grounded)ctx.restore(); // end aerial body pitch
 
   // === ATTACK VISUALS ===
 

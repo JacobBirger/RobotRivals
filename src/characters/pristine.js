@@ -34,9 +34,15 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   const inAct=atk&&atk.frame>=atk.su&&atk.frame<atk.su+atk.act;
   const dir=atk?atk.dir:null;
   const heavy=atk&&atk.type==='heavy';
-  const bob=grounded?Math.sin(wf*Math.PI/2)*2:0,by2=by+bob;
-  const ll=grounded?(wf<2?4:-4):0;
-  const swing=grounded?Math.sin(wf*Math.PI/2)*6:0;
+  // Glide walk: very smooth sine bob, barely touches ground, feet hover slightly
+  const bob=grounded?Math.sin(wf*Math.PI/2)*1.5:0, by2=by+bob;
+  const ll=grounded?(wf<2?3:-3):0; // feet barely separate
+  const swing=grounded?Math.sin(wf*Math.PI/2)*5:0;
+  // Wing fin flap angle changes with wf — gentle up/down
+  const finFlap=grounded?Math.sin(wf*Math.PI/2)*0.3:Math.sin(G.frame*0.08)*0.35;
+  // Aerial: additional gentle body float, wings spread further
+  const airFloat=grounded?0:Math.sin(G.frame*0.07)*2; // secondary body oscillation
+  const airWingSpread=grounded?0:8; // fins extend further out
   if(grounded){ctx.fillStyle='rgba(0,220,220,0.12)';ctx.beginPath();ctx.ellipse(0,h/2+3,w*0.44,5,0,0,Math.PI*2);ctx.fill();}
   // Legs
   rrFill(bx+7,by2+h*0.63,12,h*0.31+ll,4,'#111');
@@ -91,9 +97,16 @@ export function draw(ctx,ch,w,h,atk,grounded,wf){
   ctx.fillStyle='#00ffff';ctx.shadowBlur=9;ctx.shadowColor='#00ffff';
   ctx.beginPath();ctx.arc(6,by2-h*0.04,4,0,Math.PI*2);ctx.fill();
   ctx.shadowBlur=0;
-  // Wing fins on back (passive aesthetic)
-  ctx.strokeStyle='rgba(0,255,255,0.25)';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(bx+3,by2+h*0.42);ctx.lineTo(bx-11,by2+h*0.34);ctx.lineTo(bx-7,by2+h*0.52);ctx.closePath();ctx.stroke();
+  // Wing fins on back — spread wider and pulse in air
+  ctx.save();ctx.translate(bx+3,by2+h*0.42+airFloat);ctx.rotate(finFlap);
+  const finLen=14+airWingSpread;
+  ctx.strokeStyle=`rgba(0,255,255,${grounded?0.35:0.55})`;ctx.lineWidth=2;
+  ctx.fillStyle=`rgba(0,255,255,${grounded?0.08:0.15})`;
+  ctx.shadowBlur=grounded?0:12;ctx.shadowColor='#00ffff';
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-finLen,-8-finFlap*10);ctx.lineTo(-10,10);ctx.closePath();
+  ctx.fill();ctx.stroke();
+  ctx.shadowBlur=0;
+  ctx.restore();
 }
 
 

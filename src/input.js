@@ -74,21 +74,19 @@ export function pollGamepads(){
     const gpLeft=sL||btn(14),gpRight=sR||btn(15),gpUp=sU||btn(12),gpDown=sD||btn(13);
     if(gi===0){
       keys['_gp1L']=gpLeft;keys['_gp1R']=gpRight;keys['_gp1U']=gpUp;keys['_gp1D']=gpDown;
-      keys['_gp1Hvy']=btn(3);keys['_gp1Lt']=btn(2);keys['_gp1JH']=btn(0);
+      keys['_gp1Hvy']=btn(3);keys['_gp1Lt']=btn(2);keys['_gp1JH']=btn(0);keys['_gp1Boost']=btn(4)||btn(5)||btn(6)||btn(7);
       if(edge(0))G.p1JumpPend=true;
       if(edge(2))G.p1LightPend=true;
       if(edge(3))G.p1HeavyPend=true;
       if(edge(1)&&G.gameState==='game')G.p1ShieldPend=true;
-      if((edge(4)||edge(6))&&G.gameState==='game')G.p1DashPend=true;
       if(rel(3)&&G.gameState==='game')G.p1HeavyRelease=true;
     }else{
       keys['_gp2L']=gpLeft;keys['_gp2R']=gpRight;keys['_gp2U']=gpUp;keys['_gp2D']=gpDown;
-      keys['_gp2Hvy']=btn(3);keys['_gp2Lt']=btn(2);keys['_gp2JH']=btn(0);
+      keys['_gp2Hvy']=btn(3);keys['_gp2Lt']=btn(2);keys['_gp2JH']=btn(0);keys['_gp2Boost']=btn(4)||btn(5)||btn(6)||btn(7);
       if(edge(0))G.p2JumpPend=true;
       if(edge(2))G.p2LightPend=true;
       if(edge(3))G.p2HeavyPend=true;
       if(edge(1)&&G.gameState==='game')G.p2ShieldPend=true;
-      if((edge(4)||edge(6))&&G.gameState==='game')G.p2DashPend=true;
       if(rel(3)&&G.gameState==='game')G.p2HeavyRelease=true;
     }
     if(G.gameState==='modeSelect'){
@@ -114,6 +112,7 @@ export function pollGamepads(){
 
 // ---- Phone Controller (WebSocket) ----
 const phonePrev=[{},{},{},{}];
+const phoneHold=[false,false,false,false];
 let phoneWS=null;
 
 export function initPhoneController(){
@@ -133,39 +132,35 @@ export function initPhoneController(){
       const rel=(k)=>!msg[k]&&prev[k];
       if(pi===0){
         keys['_ph1L']=msg.left;keys['_ph1R']=msg.right;keys['_ph1U']=msg.up;keys['_ph1D']=msg.down;
-        keys['_ph1Hvy']=msg.heavy;keys['_ph1Lt']=msg.light;keys['_ph1JH']=msg.jump;
+        keys['_ph1Hvy']=msg.heavy;keys['_ph1Lt']=msg.light;keys['_ph1JH']=msg.jump;keys['_ph1Boost']=msg.boost;
         if(edge('jump'))G.p1JumpPend=true;
         if(edge('light'))G.p1LightPend=true;
         if(edge('heavy'))G.p1HeavyPend=true;
         if(edge('shield')&&G.gameState==='game')G.p1ShieldPend=true;
-        if(edge('dash')&&G.gameState==='game')G.p1DashPend=true;
         if(rel('heavy')&&G.gameState==='game')G.p1HeavyRelease=true;
       }else if(pi===1){
         keys['_ph2L']=msg.left;keys['_ph2R']=msg.right;keys['_ph2U']=msg.up;keys['_ph2D']=msg.down;
-        keys['_ph2Hvy']=msg.heavy;keys['_ph2Lt']=msg.light;keys['_ph2JH']=msg.jump;
+        keys['_ph2Hvy']=msg.heavy;keys['_ph2Lt']=msg.light;keys['_ph2JH']=msg.jump;keys['_ph2Boost']=msg.boost;
         if(edge('jump'))G.p2JumpPend=true;
         if(edge('light'))G.p2LightPend=true;
         if(edge('heavy'))G.p2HeavyPend=true;
         if(edge('shield')&&G.gameState==='game')G.p2ShieldPend=true;
-        if(edge('dash')&&G.gameState==='game')G.p2DashPend=true;
         if(rel('heavy')&&G.gameState==='game')G.p2HeavyRelease=true;
       }else if(pi===2){
         keys['_ph3L']=msg.left;keys['_ph3R']=msg.right;keys['_ph3U']=msg.up;keys['_ph3D']=msg.down;
-        keys['_ph3Hvy']=msg.heavy;keys['_ph3Lt']=msg.light;keys['_ph3JH']=msg.jump;
+        keys['_ph3Hvy']=msg.heavy;keys['_ph3Lt']=msg.light;keys['_ph3JH']=msg.jump;keys['_ph3Boost']=msg.boost;
         if(edge('jump'))G.p3JumpPend=true;
         if(edge('light'))G.p3LightPend=true;
         if(edge('heavy'))G.p3HeavyPend=true;
         if(edge('shield')&&G.gameState==='game')G.p3ShieldPend=true;
-        if(edge('dash')&&G.gameState==='game')G.p3DashPend=true;
         if(rel('heavy')&&G.gameState==='game')G.p3HeavyRelease=true;
       }else if(pi===3){
         keys['_ph4L']=msg.left;keys['_ph4R']=msg.right;keys['_ph4U']=msg.up;keys['_ph4D']=msg.down;
-        keys['_ph4Hvy']=msg.heavy;keys['_ph4Lt']=msg.light;keys['_ph4JH']=msg.jump;
+        keys['_ph4Hvy']=msg.heavy;keys['_ph4Lt']=msg.light;keys['_ph4JH']=msg.jump;keys['_ph4Boost']=msg.boost;
         if(edge('jump'))G.p4JumpPend=true;
         if(edge('light'))G.p4LightPend=true;
         if(edge('heavy'))G.p4HeavyPend=true;
         if(edge('shield')&&G.gameState==='game')G.p4ShieldPend=true;
-        if(edge('dash')&&G.gameState==='game')G.p4DashPend=true;
         if(rel('heavy')&&G.gameState==='game')G.p4HeavyRelease=true;
       }
       if(G.gameState==='modeSelect'){
@@ -195,7 +190,8 @@ export function initPhoneController(){
       }else if(G.gameState==='gameOver'){
         if(edge('jump')||edge('light'))G.resetMenu();
       }
-      for(const k of ['left','right','up','down','jump','light','heavy','shield','dash'])prev[k]=msg[k];
+      phoneHold[pi]=!!msg.hold;
+      for(const k of ['left','right','up','down','jump','light','heavy','shield','boost'])prev[k]=msg[k];
     }catch(e){}
   };
 }
@@ -205,30 +201,34 @@ export function getP1Input() {
   return { left:keys['KeyA']||keys['_gp1L']||keys['_ph1L'],right:keys['KeyD']||keys['_gp1R']||keys['_ph1R'],
            down:keys['KeyS']||keys['_gp1D']||keys['_ph1D'],up:keys['KeyW']||keys['_gp1U']||keys['_ph1U'],
            grab:G.p1JumpPend,light:G.p1LightPend,heavy:G.p1HeavyPend,shield:G.p1ShieldPend,
-           dash:G.p1DashPend,heavyHeld:keys['KeyX']||keys['_gp1Hvy']||keys['_ph1Hvy'],heavyRelease:G.p1HeavyRelease,
-           lightHeld:keys['KeyZ']||G.mouseLeft||keys['_gp1Lt']||keys['_ph1Lt'] };
+           dash:G.p1DashPend,boost:keys['ShiftLeft']||keys['_gp1Boost']||keys['_ph1Boost'],
+           heavyHeld:keys['KeyX']||keys['_gp1Hvy']||keys['_ph1Hvy'],heavyRelease:G.p1HeavyRelease,
+           lightHeld:keys['KeyZ']||G.mouseLeft||keys['_gp1Lt']||keys['_ph1Lt'],hold:phoneHold[0] };
 }
 export function getP2Input() {
   return { left:keys['ArrowLeft']||keys['_gp2L']||keys['_ph2L'],right:keys['ArrowRight']||keys['_gp2R']||keys['_ph2R'],
            down:keys['ArrowDown']||keys['_gp2D']||keys['_ph2D'],up:keys['ArrowUp']||keys['_gp2U']||keys['_ph2U'],
            grab:G.p2JumpPend,light:G.p2LightPend,heavy:G.p2HeavyPend,shield:G.p2ShieldPend,
-           dash:G.p2DashPend,heavyHeld:keys['BracketRight']||keys['_gp2Hvy']||keys['_ph2Hvy'],heavyRelease:G.p2HeavyRelease,
-           lightHeld:keys['BracketLeft']||keys['_gp2Lt']||keys['_ph2Lt'] };
+           dash:G.p2DashPend,boost:keys['ShiftRight']||keys['_gp2Boost']||keys['_ph2Boost'],
+           heavyHeld:keys['BracketRight']||keys['_gp2Hvy']||keys['_ph2Hvy'],heavyRelease:G.p2HeavyRelease,
+           lightHeld:keys['BracketLeft']||keys['_gp2Lt']||keys['_ph2Lt'],hold:phoneHold[1] };
 }
 export function getP3Input() {
   return { left:keys['_ph3L'],right:keys['_ph3R'],down:keys['_ph3D'],up:keys['_ph3U'],
            grab:G.p3JumpPend,light:G.p3LightPend,heavy:G.p3HeavyPend,shield:G.p3ShieldPend,
-           dash:G.p3DashPend,heavyHeld:keys['_ph3Hvy'],heavyRelease:G.p3HeavyRelease,
-           lightHeld:keys['_ph3Lt'] };
+           dash:G.p3DashPend,boost:keys['_ph3Boost'],
+           heavyHeld:keys['_ph3Hvy'],heavyRelease:G.p3HeavyRelease,
+           lightHeld:keys['_ph3Lt'],hold:phoneHold[2] };
 }
 export function getP4Input() {
   return { left:keys['_ph4L'],right:keys['_ph4R'],down:keys['_ph4D'],up:keys['_ph4U'],
            grab:G.p4JumpPend,light:G.p4LightPend,heavy:G.p4HeavyPend,shield:G.p4ShieldPend,
-           dash:G.p4DashPend,heavyHeld:keys['_ph4Hvy'],heavyRelease:G.p4HeavyRelease,
-           lightHeld:keys['_ph4Lt'] };
+           dash:G.p4DashPend,boost:keys['_ph4Boost'],
+           heavyHeld:keys['_ph4Hvy'],heavyRelease:G.p4HeavyRelease,
+           lightHeld:keys['_ph4Lt'],hold:phoneHold[3] };
 }
 export function dummyInput() {
-  return {left:false,right:false,down:false,up:false,grab:false,light:false,heavy:false,shield:false,dash:false,heavyHeld:false,heavyRelease:false,lightHeld:false};
+  return {left:false,right:false,down:false,up:false,grab:false,light:false,heavy:false,shield:false,dash:false,boost:false,heavyHeld:false,heavyRelease:false,lightHeld:false};
 }
 export function defaultInput() { return dummyInput(); }
 export function clearPendingFlags() {} // no-op; flags are cleared in loop() via G.pNXxxPend=false
