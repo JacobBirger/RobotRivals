@@ -110,21 +110,39 @@ export function pollGamepads(){
   }
 }
 
-// ---- Phone Controller (WebSocket) ----
+// ---- Phone Controller (PeerJS / WebRTC) ----
 const phonePrev=[{},{},{},{}];
 const phoneHold=[false,false,false,false];
-let phoneWS=null;
+const phoneConns=[null,null,null,null]; // slot -> DataConnection
+let phonePeer=null;
 
-export function initPhoneController(){
-  if(location.protocol==='file:')return;
-  const proto=location.protocol==='https:'?'wss':'ws';
-  phoneWS=new WebSocket(`${proto}://${location.host}`);
-  phoneWS.onopen=()=>{phoneWS.send(JSON.stringify({type:'register',role:'game'}));};
-  phoneWS.onclose=()=>{setTimeout(initPhoneController,3000);};
-  phoneWS.onerror=()=>{};
-  phoneWS.onmessage=(e)=>{
+function genRoomCode(){
+  // 4-char alphanumeric, no ambiguous chars (0/O, 1/I/L)
+  const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s='';for(let i=0;i<4;i++)s+=a[Math.floor(Math.random()*a.length)];
+  return s;
+}
+
+function updateRoomOverlay(code){
+  const el=document.getElementById('roomOverlay');
+  if(!el)return;
+  const codeEl=document.getElementById('roomCode');
+  const urlEl=document.getElementById('roomUrl');
+  const qrHolder=document.getElementById('qrHolder');
+  const url=`${location.origin}${location.pathname.replace(/[^/]*$/,'')}controller.html?room=${code}`;
+  codeEl.textContent=code;
+  urlEl.textContent=url;
+  el.classList.add('show');
+  if(typeof qrcode!=='undefined'&&qrHolder){
     try{
-      const msg=JSON.parse(e.data);
+      const qr=qrcode(0,'L');qr.addData(url);qr.make();
+      qrHolder.innerHTML=qr.createImgTag(3,0);
+    }catch(e){}
+  }
+}
+
+function handlePhoneMsg(msg){
+  try{
       if(msg.type!=='input')return;
       const pi=(msg.player||1)-1;
       const prev=phonePrev[pi];
@@ -193,7 +211,69 @@ export function initPhoneController(){
       phoneHold[pi]=!!msg.hold;
       for(const k of ['left','right','up','down','jump','light','heavy','shield','boost'])prev[k]=msg[k];
     }catch(e){}
+}
+
+function refreshOverlayVisibility(){
+  const el=document.getElementById('roomOverlay');
+  if(!el)return;
+  const anyConnected=phoneConns.some(c=>c);
+  el.classList.toggle('show',!anyConnected);
+}
+
+function attachPhoneConn(conn){
+  conn.on('open',()=>{
+    const slot=phoneConns.findIndex(c=>!c);
+    if(slot<0){conn.close();return;}
+    phoneConns[slot]=conn;
+    conn.send({type:'slot',player:slot+1});
+    refreshOverlayVisibility();
+  });
+  conn.on('data',(d)=>{
+    const pi=phoneConns.indexOf(conn);
+    if(pi<0)return;
+    // Allow phone to declare which slot it wants (e.g. via dropdown).
+    if(d&&d.type==='claim'&&typeof d.player==='number'){
+      const want=Math.max(1,Math.min(4,d.player|0))-1;
+      if(want!==pi&&!phoneConns[want]){
+        phoneConns[pi]=null;phoneConns[want]=conn;
+        conn.send({type:'slot',player:want+1});
+      }
+      return;
+    }
+    if(!d||d.type!=='input')return;
+    handlePhoneMsg({...d,player:pi+1});
+  });
+  conn.on('close',()=>{
+    const i=phoneConns.indexOf(conn);
+    if(i>=0)phoneConns[i]=null;
+    refreshOverlayVisibility();
+  });
+  conn.on('error',()=>{});
+}
+
+export function initPhoneController(){
+  if(typeof Peer==='undefined')return;
+  if(phonePeer)return;
+  const tryConnect=()=>{
+    const code=genRoomCode();
+    const id='robot-rivals-'+code.toLowerCase();
+    const p=new Peer(id);
+    p.on('open',()=>{
+      phonePeer=p;
+      window.G_ROOM_CODE=code;
+      updateRoomOverlay(code);
+    });
+    p.on('connection',attachPhoneConn);
+    p.on('error',(err)=>{
+      if(err&&(err.type==='unavailable-id'||/taken/i.test(String(err.message||'')))){
+        try{p.destroy();}catch(e){}
+        setTimeout(tryConnect,50);
+      }
+      // Other errors are ignored; PeerJS keeps signaling alive.
+    });
+    p.on('disconnected',()=>{try{p.reconnect();}catch(e){}});
   };
+  tryConnect();
 }
 
 // ---- Input getters ----

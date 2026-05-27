@@ -7,10 +7,25 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: monospace; overflow: hidden; }
     canvas { display: block; cursor: crosshair; width: min(100vw, calc(100vh * 1000 / 600)); height: min(100vh, calc(100vw * 600 / 1000)); image-rendering: pixelated; }
+    #roomOverlay { position: fixed; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border: 1px solid #444; border-radius: 6px; padding: 6px 8px; color: #ccc; font-family: monospace; font-size: 12px; line-height: 1.3; text-align: center; z-index: 10; display: none; }
+    #roomOverlay.show { display: block; }
+    #roomOverlay .label { color: #888; font-size: 10px; }
+    #roomOverlay .code { color: #4cf; font-size: 18px; font-weight: bold; letter-spacing: 2px; margin: 2px 0 4px; }
+    #roomOverlay .url { color: #888; font-size: 9px; margin-top: 4px; word-break: break-all; max-width: 160px; }
+    #qrHolder { background: #fff; padding: 4px; border-radius: 4px; display: inline-block; }
+    #qrHolder img, #qrHolder canvas { display: block; }
   </style>
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="roomOverlay">
+  <div class="label">PHONE CONTROLLER</div>
+  <div class="code" id="roomCode">----</div>
+  <div id="qrHolder"></div>
+  <div class="url" id="roomUrl"></div>
+</div>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script type="module" src="src/gameloop.js"></script>
 </body>
 </html>

@@ -38,6 +38,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:mon
 #b-boost{background:rgba(100,180,255,0.08);border-color:rgba(100,180,255,0.25);}
 #b-boost.active{background:rgba(100,180,255,0.45);border-color:rgba(100,180,255,0.9);box-shadow:0 0 16px rgba(100,180,255,0.6);}
 
+/* Room code prompt (shown when ?room= missing) */
+#roomPrompt{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;}
+#roomPrompt.hidden{display:none;}
+#roomPrompt h2{font-size:18px;color:#4cf;}
+#roomPrompt p{font-size:13px;color:#aaa;max-width:300px;}
+#roomInput{background:#222;color:#fff;border:2px solid #555;font-family:monospace;font-size:24px;padding:10px 14px;border-radius:6px;width:160px;text-align:center;letter-spacing:6px;text-transform:uppercase;}
+#roomJoin{background:#4cf;color:#000;border:none;font-family:monospace;font-size:16px;font-weight:bold;padding:10px 24px;border-radius:6px;cursor:pointer;}
+
 /* Portrait layout */
 @media (orientation:portrait){
   #holdBtn{top:32px;left:0;right:0;height:56px;}
@@ -68,6 +76,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:mon
 </style>
 </head>
 <body>
+<div id="roomPrompt" class="hidden">
+  <h2>ROBOT RIVALS</h2>
+  <p>Enter the 4-character room code shown on the game screen.</p>
+  <input id="roomInput" maxlength="4" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" />
+  <button id="roomJoin">JOIN</button>
+</div>
 <button id="holdBtn">HOLD</button>
 <div id="topbar">
   <div id="status">Connecting...</div>
@@ -87,6 +101,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:mon
   <div class="abtn" id="b-boost" data-key="boost">BOOST</div>
 </div>
 
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const state={left:false,right:false,up:false,down:false,jump:false,light:false,heavy:false,shield:false,boost:false,hold:false};
 const statusEl=document.getElementById('status');
@@ -94,33 +109,48 @@ const playerSel=document.getElementById('playerSel');
 const dpadZone=document.getElementById('dpadZone');
 const dpadCanvas=document.getElementById('dpadCanvas');
 const dpadCtx=dpadCanvas.getContext('2d');
-let ws=null;
+const roomPrompt=document.getElementById('roomPrompt');
+const roomInput=document.getElementById('roomInput');
+const roomJoin=document.getElementById('roomJoin');
+let peer=null,conn=null,roomCode=null;
 
 // Track touches: each touch is either 'dpad' or a button key
 const touches=new Map(); // touchId -> {zone:'dpad'|'btn', key:string|null}
 
-function connect(){
-  const proto=location.protocol==='https:'?'wss':'ws';
-  ws=new WebSocket(`${proto}://${location.host}`);
-  ws.onopen=()=>{
-    statusEl.textContent='Connected';statusEl.className='ok';
-  };
-  ws.onmessage=(e)=>{
-    try{
-      const msg=JSON.parse(e.data);
-      if(msg.type==='welcome'){
-        playerSel.value=msg.player;
-        ws.send(JSON.stringify({type:'register',role:'controller',player:msg.player}));
-      }
-    }catch(e){}
-  };
-  ws.onclose=()=>{statusEl.textContent='Disconnected';statusEl.className='';setTimeout(connect,2000);};
-  ws.onerror=()=>{};
+function connectToRoom(code){
+  roomCode=code.toUpperCase();
+  roomPrompt.classList.add('hidden');
+  statusEl.textContent='Connecting...';statusEl.className='';
+  try{if(peer)peer.destroy();}catch(e){}
+  peer=new Peer();
+  peer.on('open',()=>{
+    const hostId='robot-rivals-'+roomCode.toLowerCase();
+    conn=peer.connect(hostId,{reliable:false}); // unreliable = lower latency, OK for input
+    conn.on('open',()=>{
+      statusEl.textContent='Connected';statusEl.className='ok';
+      conn.send({type:'claim',player:parseInt(playerSel.value)});
+    });
+    conn.on('data',(msg)=>{
+      if(msg&&msg.type==='slot'){playerSel.value=msg.player;}
+    });
+    conn.on('close',()=>{
+      statusEl.textContent='Disconnected';statusEl.className='';
+      setTimeout(()=>{if(roomCode)connectToRoom(roomCode);},2000);
+    });
+    conn.on('error',()=>{statusEl.textContent='Connect failed';});
+  });
+  peer.on('error',(err)=>{
+    statusEl.textContent='Error: '+(err.type||'unknown');
+    if(err&&err.type==='peer-unavailable'){
+      // Wrong/stale room code — show prompt again
+      roomCode=null;roomPrompt.classList.remove('hidden');
+    }
+  });
 }
 
 function send(){
-  if(ws&&ws.readyState===1){
-    ws.send(JSON.stringify({type:'input',player:parseInt(playerSel.value),...state}));
+  if(conn&&conn.open){
+    conn.send({type:'input',player:parseInt(playerSel.value),...state});
   }
 }
 
@@ -259,19 +289,17 @@ for(const el of [gameZone,btnZoneEl]){
 }
 
 playerSel.addEventListener('change',()=>{
-  if(ws&&ws.readyState===1){
-    // Send all-clear for the old player first
-    const oldPlayer=parseInt(playerSel.value)===1?2:1;
-    ws.send(JSON.stringify({type:'input',player:oldPlayer,left:false,right:false,up:false,down:false,jump:false,light:false,heavy:false,shield:false,boost:false}));
-    // Register as new player
-    ws.send(JSON.stringify({type:'register',role:'controller',player:parseInt(playerSel.value)}));
-  }
   // Clear all local touch state (including hold toggle)
   for(const k of Object.keys(state))state[k]=false;
   holdBtn.classList.remove('on');
   touches.clear();
   clearDpad();
   document.querySelectorAll('.abtn').forEach(b=>b.classList.remove('active'));
+  if(conn&&conn.open){
+    // Send all-clear, then claim the new slot
+    conn.send({type:'input',...state});
+    conn.send({type:'claim',player:parseInt(playerSel.value)});
+  }
 });
 
 // Hold button toggle
@@ -285,7 +313,18 @@ holdBtn.addEventListener('touchstart',(e)=>{e.preventDefault();state.hold=!state
 
 // Initial draw
 drawDpad({left:false,right:false,up:false,down:false});
-connect();
+
+// Room code handling — from URL ?room= or manual entry
+roomJoin.addEventListener('click',()=>{
+  const v=roomInput.value.trim().toUpperCase();
+  if(v.length>=3)connectToRoom(v);
+});
+roomInput.addEventListener('keydown',(e)=>{if(e.key==='Enter')roomJoin.click();});
+roomInput.addEventListener('input',()=>{roomInput.value=roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g,'');});
+
+const urlRoom=new URLSearchParams(location.search).get('room');
+if(urlRoom){connectToRoom(urlRoom);}
+else{roomPrompt.classList.remove('hidden');statusEl.textContent='Enter room code';roomInput.focus();}
 </script>
 </body>
 </html>
