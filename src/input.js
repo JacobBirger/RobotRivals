@@ -123,13 +123,31 @@ function genRoomCode(){
   return s;
 }
 
+// Where the phone fetches controller.html. Set to a public URL so phones can
+// always reach it (PeerJS handles the peer-to-peer link separately). If the
+// game is being viewed at this same origin, fall back to a relative path so
+// localhost dev still works without changing anything.
+const PUBLIC_CONTROLLER_URL='https://jacobbirger.github.io/RobotBrawl/controller.html';
+
+function buildControllerUrl(code){
+  try{
+    const pub=new URL(PUBLIC_CONTROLLER_URL);
+    if(location.hostname===pub.hostname){
+      return `${location.origin}${location.pathname.replace(/[^/]*$/,'')}controller.html?room=${code}`;
+    }
+    return `${PUBLIC_CONTROLLER_URL}?room=${code}`;
+  }catch(e){
+    return `${location.origin}${location.pathname.replace(/[^/]*$/,'')}controller.html?room=${code}`;
+  }
+}
+
 function updateRoomOverlay(code){
   const el=document.getElementById('roomOverlay');
   if(!el)return;
   const codeEl=document.getElementById('roomCode');
   const urlEl=document.getElementById('roomUrl');
   const qrHolder=document.getElementById('qrHolder');
-  const url=`${location.origin}${location.pathname.replace(/[^/]*$/,'')}controller.html?room=${code}`;
+  const url=buildControllerUrl(code);
   codeEl.textContent=code;
   urlEl.textContent=url;
   el.classList.add('show');
