@@ -12,6 +12,8 @@
     #roomOverlay .label { color: #888; font-size: 10px; }
     #roomOverlay .code { color: #4cf; font-size: 18px; font-weight: bold; letter-spacing: 2px; margin: 2px 0 4px; }
     #roomOverlay .url { color: #888; font-size: 9px; margin-top: 4px; word-break: break-all; max-width: 160px; }
+    #roomClose { position: absolute; top: 2px; right: 4px; background: transparent; border: none; color: #ccc; font-family: monospace; font-size: 14px; font-weight: bold; cursor: pointer; padding: 2px 6px; line-height: 1; }
+    #roomClose:hover { color: #fff; }
     #qrHolder { background: #fff; padding: 4px; border-radius: 4px; display: inline-block; }
     #qrHolder img, #qrHolder canvas { display: block; }
   </style>
@@ -19,6 +21,7 @@
 <body>
 <canvas id="game"></canvas>
 <div id="roomOverlay">
+  <button id="roomClose" type="button" aria-label="Close">X</button>
   <div class="label">PHONE CONTROLLER</div>
   <div class="code" id="roomCode">----</div>
   <div id="qrHolder"></div>

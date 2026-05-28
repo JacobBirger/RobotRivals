@@ -231,12 +231,19 @@ function handlePhoneMsg(msg){
     }catch(e){}
 }
 
-function refreshOverlayVisibility(){
-  const el=document.getElementById('roomOverlay');
-  if(!el)return;
-  const anyConnected=phoneConns.some(c=>c);
-  el.classList.toggle('show',!anyConnected);
-}
+function refreshOverlayVisibility(){}
+
+(function wireRoomClose(){
+  if(typeof document==='undefined')return;
+  const attach=()=>{
+    const btn=document.getElementById('roomClose');
+    const el=document.getElementById('roomOverlay');
+    if(!btn||!el)return;
+    btn.addEventListener('click',()=>{el.classList.remove('show');});
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attach,{once:true});
+  else attach();
+})();
 
 function attachPhoneConn(conn){
   conn.on('open',()=>{
