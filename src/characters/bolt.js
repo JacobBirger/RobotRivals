@@ -9,7 +9,8 @@ export const char = { id:0,name:'BOLT',tag:'The All-Rounder',
     color:'#3399ff',accent:'#1155cc',eyeCol:'#00ffff',hi:'#88ccff',
     w:46,h:58,speed:5.5,jumpF:-13.5,djF:-12.0,weight:1.0,def:1.00,shieldCool:120,
     lDmg:5,hDmg:10,lKB:5,hKB:11,lSU:5,hSU:15,lAct:8,hAct:12,lEl:8,hEl:22,
-    lSz:44,lRch:74,hSz:62,hRch:90, maxCombo:2 };
+    lSz:44,lRch:74,hSz:62,hRch:90, maxCombo:2,
+    signatureCombo:{firstType:'light',firstDir:'down',followType:'heavy',followDir:'up'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

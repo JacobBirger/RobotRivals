@@ -10,7 +10,8 @@ export const char = { id:8,name:'BLADE',tag:'The Knife Fighter',
     color:'#88bbdd',accent:'#334466',eyeCol:'#cceeff',hi:'#aaccee',
     w:42,h:52,speed:7.5,jumpF:-14.7,djF:-13.2,weight:0.9,def:1.08,shieldCool:96,
     lDmg:4,hDmg:8,lKB:4,hKB:9,lSU:3,hSU:11,lAct:7,hAct:12,lEl:6,hEl:18,
-    lSz:38,lRch:72,hSz:56,hRch:105, maxCombo:2 };
+    lSz:38,lRch:72,hSz:56,hRch:105, maxCombo:2,
+    signatureCombo:{firstType:'light',firstDir:'up',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

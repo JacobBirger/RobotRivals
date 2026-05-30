@@ -10,7 +10,8 @@ export const char = { id:4,name:'EDGE',tag:'The Duelist',
     color:'#cc44ff',accent:'#881acc',eyeCol:'#ff88ff',hi:'#dd99ff',
     w:44,h:56,speed:6.0,jumpF:-14.1,djF:-12.6,weight:0.9,def:1.00,shieldCool:96,
     lDmg:9,hDmg:12,lKB:6,hKB:13,lSU:4,hSU:12,lAct:7,hAct:11,lEl:8,hEl:20,
-    lSz:32,lRch:90,hSz:50,hRch:102, maxCombo:3 };
+    lSz:32,lRch:90,hSz:50,hRch:102, maxCombo:3,
+    signatureCombo:{firstType:'light',firstDir:'up',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

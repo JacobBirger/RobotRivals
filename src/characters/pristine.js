@@ -11,7 +11,8 @@ export const char = { id:10,name:'PRISTINE',tag:'The Aerial Sentinel',
     w:44,h:56,speed:6.0,jumpF:-13.5,djF:-12.0,weight:1.0,def:0.92,shieldCool:96,
     lDmg:6,hDmg:12,lKB:5,hKB:11,lSU:3,hSU:20,lAct:6,hAct:12,lEl:6,hEl:16,
     lSz:10,lRch:10,hSz:10,hRch:10,
-    lightBeamRange:175,beamSpd:14 };
+    lightBeamRange:175,beamSpd:14,
+    signatureCombo:{firstType:'light',firstDir:'up',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

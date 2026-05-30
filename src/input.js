@@ -127,7 +127,7 @@ function genRoomCode(){
 // always reach it (PeerJS handles the peer-to-peer link separately). If the
 // game is being viewed at this same origin, fall back to a relative path so
 // localhost dev still works without changing anything.
-const PUBLIC_CONTROLLER_URL='https://jacobbirger.github.io/RobotBrawl/controller.html';
+const PUBLIC_CONTROLLER_URL='https://jacobbirger.github.io/RobotRivals/controller.html';
 
 function buildControllerUrl(code){
   try{

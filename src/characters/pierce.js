@@ -9,7 +9,8 @@ export const char = { id:5,name:'PIERCE',tag:'The Lancer',
     color:'#00dddd',accent:'#008888',eyeCol:'#aaffff',hi:'#88eeee',
     w:44,h:56,speed:7.0,jumpF:-13.5,djF:-12.0,weight:0.8,def:1.16,shieldCool:84,
     lDmg:7,hDmg:14,lKB:8,hKB:17,lSU:4,hSU:14,lAct:8,hAct:12,lEl:9,hEl:26,
-    lSz:26,lRch:100,hSz:36,hRch:118, maxCombo:3 };
+    lSz:26,lRch:100,hSz:36,hRch:118, maxCombo:3,
+    signatureCombo:{firstType:'light',firstDir:'down',followType:'heavy',followDir:'up'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

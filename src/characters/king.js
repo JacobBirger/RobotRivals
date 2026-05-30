@@ -16,7 +16,8 @@ export const char = { id:14,name:'KING',tag:'The Royal Guard',
     kingSideHeavyPokeReach:124,  // side-heavy poke (extends past swing)
     kingSpinReach:96,            // up-heavy spin radius
     kingFireDuration:120,        // 2s sword fire (60fps)
-    kingBurnDuration:90 };
+    kingBurnDuration:90,
+    signatureCombo:{firstType:'light',firstDir:'side',followType:'heavy',followDir:'up'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

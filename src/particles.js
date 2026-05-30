@@ -35,7 +35,10 @@ function addHitParticles(x,y,color,heavy) {
 }
 function updateParticles() {
   for (let i=particles.length-1;i>=0;i--) {
-    const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.88; p.vy=p.vy*0.88+0.15; p.life--;
+    const p=particles[i];
+    if (p.text) { p.x+=p.vx; p.y+=p.vy; /* no friction, no gravity for floating text */ }
+    else { p.x+=p.vx; p.y+=p.vy; p.vx*=0.88; p.vy=p.vy*0.88+0.15; }
+    p.life--;
     if (p.life<=0) particles.splice(i,1);
   }
   G.shakeX*=0.72; G.shakeY*=0.72;
@@ -44,7 +47,17 @@ function updateParticles() {
 function drawParticles() {
   for (const p of particles) {
     ctx.globalAlpha=p.life/p.max;
-    if(p.ring){
+    if(p.text){
+      const t=p.life/p.max;
+      const scale=1.4+(1-t)*0.6;
+      ctx.save();
+      ctx.translate(p.x,p.y); ctx.scale(scale,scale);
+      ctx.font='bold 18px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.shadowBlur=14; ctx.shadowColor=p.col;
+      ctx.fillStyle='#ffffff'; ctx.fillText(p.text,0,0);
+      ctx.shadowBlur=0;
+      ctx.restore();
+    } else if(p.ring){
       const r=p.ringR+(1-p.life/p.max)*110;
       ctx.strokeStyle=p.col; ctx.lineWidth=3*(p.life/p.max);
       ctx.shadowBlur=18; ctx.shadowColor=p.col;

@@ -11,7 +11,8 @@ export const char = { id:12,name:'FACTORY',tag:'The Manufacturer',
     w:66,h:80,speed:3.5,jumpF:-11.5,djF:-9.5,weight:1.5,def:0.70,shieldCool:132,
     lDmg:6,hDmg:14,lKB:6,hKB:14,lSU:5,hSU:12,lAct:7,hAct:10,lEl:10,hEl:20,
     lSz:18,lRch:80,hSz:22,hRch:96,
-    boltCDMax:300,zapCDMax:180 };
+    boltCDMax:300,zapCDMax:180,
+    signatureCombo:{firstType:'light',firstDir:'side',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

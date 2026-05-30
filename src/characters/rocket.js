@@ -10,7 +10,8 @@ export const char = { id:6,name:'ROCKET',tag:'The Arm Cannon',
     color:'#ff6600',accent:'#993300',eyeCol:'#ffcc00',hi:'#ffaa44',
     w:50,h:62,speed:5.0,jumpF:-12.3,djF:-10.8,weight:1.0,def:1.00,shieldCool:120,
     lDmg:5,hDmg:10,lKB:5,hKB:11,lSU:4,hSU:12,lAct:6,hAct:8,lEl:4,hEl:22,
-    lSz:10,lRch:10,hSz:10,hRch:10 };
+    lSz:10,lRch:10,hSz:10,hRch:10,
+    signatureCombo:{firstType:'light',firstDir:'side',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

@@ -14,7 +14,7 @@ import { VIS_LEFT, VIS_RIGHT, VIS_TOP, VIS_BOT } from './player/constants.js';
 
 function startGame(){
   G.curStage=STAGES[G.stageSel];
-  const clr=()=>{G.winner='';G.gameState='game';G.frame=0;particles.length=0;bullets.length=0;miniSwords.length=0;rocketArms.length=0;rocketMines.length=0;smokeClouds.length=0;unstableHeads.length=0;knives.length=0;throwSwords.length=0;firePebbles.length=0;factoryBolts.length=0;factoryGears.length=0;factoryZaps.length=0;G.shakeX=0;G.shakeY=0;G.boulder=null;smallRocks.length=0;};
+  const clr=()=>{G.winner='';G.gameState='game';G.frame=0;particles.length=0;bullets.length=0;miniSwords.length=0;rocketArms.length=0;rocketMines.length=0;smokeClouds.length=0;unstableHeads.length=0;knives.length=0;throwSwords.length=0;firePebbles.length=0;factoryBolts.length=0;factoryGears.length=0;factoryZaps.length=0;G.shakeX=0;G.shakeY=0;G.comboFlash=0;G.boulder=null;smallRocks.length=0;};
   if(G.networkMode==='team4'){
     // 4 spawn points: spread evenly across the stage
     const stageW=G.curStage.ground.w||1000;
@@ -166,6 +166,13 @@ function loop(){
       ctx.strokeRect(VIS_LEFT,VIS_TOP,VIS_RIGHT-VIS_LEFT,VIS_BOT-VIS_TOP);
     }
     ctx.restore();
+    // Combo flash overlay (full-screen golden tint that fades out)
+    if(G.comboFlash>0){
+      const a=G.comboFlash/12;
+      ctx.fillStyle=`rgba(255,238,68,${0.22*a})`;
+      ctx.fillRect(0,0,W,H);
+      G.comboFlash--;
+    }
     for(const p of G.players)p.drawOffScreenIndicator();
     if(G.networkMode==='team4'){
       // Team 1 (P1,P3) on left; Team 2 (P2,P4) on right

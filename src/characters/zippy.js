@@ -9,7 +9,8 @@ export const char = { id:2,name:'ZIPPY',tag:'The Speed Demon',
     color:'#ffdd00',accent:'#cc8800',eyeCol:'#ff00cc',hi:'#ffee88',
     w:40,h:50,speed:8.0,jumpF:-14.1,djF:-12.6,weight:0.8,def:1.16,shieldCool:108,
     lDmg:5,hDmg:9,lKB:5,hKB:10,lSU:2,hSU:8,lAct:6,hAct:10,lEl:5,hEl:16,
-    lSz:38,lRch:50,hSz:55,hRch:64 };
+    lSz:38,lRch:50,hSz:55,hRch:64,
+    signatureCombo:{firstType:'light',firstDir:'down',followType:'heavy',followDir:'up'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

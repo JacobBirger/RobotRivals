@@ -16,6 +16,7 @@ export const G = {
   curStage: null,
   carnivalAngle: 0,
   shakeX: 0, shakeY: 0,
+  comboFlash: 0,
   winner: '', gameOverTimer: 0,
   selectStep: 0, p1Sel: 0, p2Sel: 1, p3Sel: 2, p4Sel: 3, stageSel: 0,
   p1Confirmed: false,

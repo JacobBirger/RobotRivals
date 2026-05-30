@@ -11,7 +11,8 @@ export const char = { id:3,name:'BLASTER',tag:'The Marksman',
     lDmg:6,hDmg:8,lKB:4,hKB:9,lSU:4,hSU:50,lAct:5,hAct:7,lEl:8,hEl:22,
     lSz:10,lRch:10,hSz:12,hRch:12,
     bulletSpd:12,heavyBulletSpd:18,
-    lightBulletRange:220,heavyBulletRange:300 };
+    lightBulletRange:220,heavyBulletRange:300,
+    signatureCombo:{firstType:'light',firstDir:'side',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

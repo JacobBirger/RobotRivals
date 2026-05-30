@@ -9,7 +9,8 @@ export const char = { id:1,name:'CRUSHER',tag:'The Powerhouse',
     color:'#ff3333',accent:'#991111',eyeCol:'#ff8800',hi:'#ff8888',
     w:58,h:68,speed:4.0,jumpF:-12.3,djF:-10.8,weight:1.5,def:0.68,shieldCool:132,
     lDmg:8,hDmg:16,lKB:10,hKB:21,lSU:6,hSU:18,lAct:10,hAct:15,lEl:10,hEl:28,
-    lSz:52,lRch:60,hSz:72,hRch:77 };
+    lSz:52,lRch:60,hSz:72,hRch:77,
+    signatureCombo:{firstType:'light',firstDir:'side',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

@@ -10,7 +10,8 @@ export const char = { id:7,name:'UNSTABLE',tag:'The Walking Disaster',
     color:'#cc2244',accent:'#881122',eyeCol:'#ff8800',hi:'#ff4466',
     w:52,h:60,speed:6.5,jumpF:-12.9,djF:-11.4,weight:0.9,def:1.16,shieldCool:132,
     lDmg:8,hDmg:16,lKB:9,hKB:19,lSU:4,hSU:14,lAct:8,hAct:10,lEl:7,hEl:20,
-    lSz:12,lRch:12,hSz:14,hRch:14 };
+    lSz:12,lRch:12,hSz:14,hRch:14,
+    signatureCombo:{firstType:'light',firstDir:'side',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

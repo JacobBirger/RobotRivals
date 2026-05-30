@@ -11,7 +11,8 @@ export const char = { id:11,name:'MAGMA',tag:'The Inferno',
     w:54,h:66,speed:4.5,jumpF:-12.3,djF:-10.8,weight:1.4,def:0.72,shieldCool:132,
     lDmg:3,hDmg:12,lKB:3,hKB:13,lSU:5,hSU:14,lAct:8,hAct:12,lEl:10,hEl:24,
     lSz:12,lRch:12,hSz:14,hRch:14,
-    flameFuelMax:90,flameRange:220,flameRechargeRate:0.75 };
+    flameFuelMax:90,flameRange:220,flameRechargeRate:0.75,
+    signatureCombo:{firstType:'light',firstDir:'side',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;

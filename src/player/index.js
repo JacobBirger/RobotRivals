@@ -29,6 +29,14 @@ class Player {
     this.shieldActive=false; this.shieldTimer=0; this.shieldCooldown=0;
     // Combo
     this.comboPend=false;
+    // Signature combo system: after any hit, victim has comboWindow frames of reduced hitstun
+    // during which the attacker can land their signature follow-up for bonus damage/KB.
+    // Victim can spend their burst (shield press during window) to escape with i-frames.
+    this.comboWindow=0;       // frames remaining where this player is "comboable"
+    this.lastAtkBy=null;      // who landed the most recent hit on this player
+    this.lastAtkType=null;    // attacker's previously-landed attack type (for chain detection)
+    this.lastAtkDir=null;     // attacker's previously-landed attack dir
+    this.lastAtkLandFrame=-999; // G.frame of attacker's last landed hit
     // Dash
     this.dashActive=false; this.dashTimer=0; this.dashCD=0;
     // Boost
@@ -112,6 +120,25 @@ class Player {
     if (this.grabWhiffT>0) this.grabWhiffT--;
     if (this.hitlag>0){this.hitlag--;return;}
     if (this.hstun>0){this.hstun--;if(this.charging){this.charging=false;this.chargeTime=0;}}
+    if (this.comboWindow>0) this.comboWindow--;
+
+    // ===== BURST (combo escape) =====
+    // While victim is inside their combo window, pressing shield bursts them out:
+    // brief i-frames, velocity zeroed, but shield enters 3x cooldown so they can't immediately re-shield.
+    if (this.comboWindow>0 && inp.shield && !this.isDummy && !this.shieldActive && this.shieldCooldown===0) {
+      this.hitImmune=8;
+      this.vx=0; this.vy=0;
+      this.hstun=0;
+      this.comboWindow=0;
+      this.shieldCooldown=Math.round((this.ch.shieldCool??SHIELD_COOLDOWN)*3);
+      // Burst sparkle
+      for(let i=0;i<14;i++){
+        const ang=(i/14)*Math.PI*2, spd=4+Math.random()*3;
+        particles.push({x:this.cx,y:this.cy,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,life:18,max:18,col:i%2?'#ffffff':'#88ddff',sz:3});
+      }
+      playSfx({freq:880,freq2:300,type:'sine',decay:0.18,vol:0.18});
+      G.shakeX+=(Math.random()-0.5)*6; G.shakeY+=(Math.random()-0.5)*6;
+    }
 
     // ===== GRAB SYSTEM =====
     // If the player got knocked into hitstun this G.frame (or a projectile pushed velocity), break grabs.
@@ -1267,6 +1294,20 @@ class Player {
     // chargeRatio scaling
     const cr=this.atk.chargeRatio||0;
     if(cr>0){dmg=Math.round(dmg*(1+cr*2));baseKB*=(1+cr*1.5);}
+    // ===== SIGNATURE COMBO DETECTION =====
+    // If target is still in their comboWindow from a recent hit by ME, and this attack matches my
+    // signature follow-up (after a matching opener), apply combo bonus and trigger COMBO! feedback.
+    let signatureHit=false;
+    const sig=this.ch.signatureCombo;
+    if(sig&&target.comboWindow>0&&target.lastAtkBy===this){
+      const openerMatch=this.lastAtkType===sig.firstType&&this.lastAtkDir===sig.firstDir;
+      const followMatch=this.atk.type===sig.followType&&dir===sig.followDir;
+      if(openerMatch&&followMatch){
+        signatureHit=true;
+        dmg=Math.round(dmg*1.25);
+        baseKB*=1.25;
+      }
+    }
     // EDGE combo scaling
     if(this.ch.id===4&&!heavy&&this.atk.comboN){
       const cn=this.atk.comboN;
@@ -1382,6 +1423,25 @@ class Player {
     const shakeMag=Math.min(14,(heavy?2.2:1.1)+kb*0.55);
     G.shakeX+=(Math.random()-0.5)*2*shakeMag;
     G.shakeY+=(Math.random()-0.5)*2*shakeMag;
+    // ===== SIGNATURE COMBO BOOKKEEPING =====
+    // Open an 18f burst window on the victim, and stash this attacker's move so the next hit
+    // can recognise the signature chain (lastAtkType/Dir live on the ATTACKER for chain detection).
+    target.comboWindow=18;
+    target.lastAtkBy=this;
+    this.lastAtkType=this.atk.type;
+    this.lastAtkDir=dir;
+    this.lastAtkLandFrame=G.frame;
+    if(signatureHit){
+      // Big "COMBO!" feedback: text particle + screen flash
+      particles.push({x:target.cx,y:target.cy-40,vx:0,vy:-1.5,life:42,max:42,col:'#ffee44',sz:0,text:'COMBO!'});
+      for(let i=0;i<22;i++){
+        const ang=Math.random()*Math.PI*2, spd=3+Math.random()*5;
+        particles.push({x:target.cx,y:target.cy,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd-2,life:24,max:24,col:i%3===0?'#ffffff':'#ffee44',sz:3});
+      }
+      G.shakeX+=(Math.random()-0.5)*10; G.shakeY+=(Math.random()-0.5)*10;
+      G.comboFlash=12;
+      playSfx({freq:1200,freq2:600,type:'square',decay:0.16,vol:0.2});
+    }
     // ===== GRAB RELEASE =====
     // Case A: this attacker is grabbing target → the grab-release attack landed
     if(this.grabbing===target){
@@ -1423,6 +1483,7 @@ class Player {
   doRespawn(){
     this.dead=false;this.x=this.spawnX-this.w/2;this.y=180;this.vx=this.vy=0;this.jLeft=2;this.onGnd=false;this.onPlat=false;this.offScreenTimer=0;
     this.boostActive=false;this.boostFuel=BOOST_MAX;
+    this.comboWindow=0;this.lastAtkBy=null;this.lastAtkType=null;this.lastAtkDir=null;
     // Release any grab partner: if I died while holding/being held, free the other side
     if(this.grabbedBy){this.grabbedBy.grabbing=null;this.grabbedBy.grabT=0;}
     if(this.grabbing){this.grabbing.grabbedBy=null;this.grabbing.grabT=0;}
@@ -1533,6 +1594,24 @@ class Player {
     }
     ctx.restore();
 
+
+    // Burst-ready indicator: while comboWindow > 0, pulse a small yellow ring above head
+    // signalling "press shield to escape combo"
+    if(this.comboWindow>0&&!this.isDummy){
+      const t=this.comboWindow/18;
+      const pulse=Math.abs(Math.sin(G.frame*0.6));
+      ctx.save();
+      ctx.globalAlpha=0.4+pulse*0.5;
+      ctx.strokeStyle='#ffee44'; ctx.lineWidth=2;
+      ctx.shadowBlur=10; ctx.shadowColor='#ffee44';
+      ctx.beginPath(); ctx.arc(this.cx,this.y-30,5+pulse*2.5,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle='#ffee44';
+      ctx.beginPath(); ctx.arc(this.cx,this.y-30,2,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=t*0.7;
+      ctx.fillStyle='#ffee44'; ctx.font='bold 7px monospace'; ctx.textAlign='center';
+      ctx.fillText('BURST',this.cx,this.y-42);
+      ctx.restore();
+    }
 
     // Combo window indicator: pulsing dots above character
     if(this.atk&&this.ch.maxCombo>1&&this.atk.type==='light'&&this.atk.frame>=this.atk.su&&(this.atk.comboN||1)<this.ch.maxCombo){

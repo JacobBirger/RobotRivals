@@ -11,7 +11,8 @@ export const char = { id:13,name:'GLITCH',tag:'The Phantom',
     lDmg:5,hDmg:10,lKB:5,hKB:11,
     lSU:3,hSU:12,lAct:18,hAct:10,lEl:8,hEl:20,
     lSz:24,lRch:70,hSz:30,hRch:30,
-    teleArmRange:75 };
+    teleArmRange:75,
+    signatureCombo:{firstType:'light',firstDir:'side',followType:'heavy',followDir:'side'} };
 
 export function getAtkFrames(type, dir, comboN, player) {
   return null;
