@@ -101,6 +101,7 @@ class Player {
   }
 
   update(inp,st,opps) {
+    this.lastInput=inp;
     const opp=opps&&opps.find(p=>!p.dead)||null;
     if (this.dead){this.respawnT--;if(this.respawnT<=0)this.doRespawn();return;}
     if (this.hitFlash>0) this.hitFlash--;
@@ -733,7 +734,7 @@ class Player {
                 if(!aabb({x:this.x-8,y:this.y-8,w:this.w+16,h:this.h+16},{x:tgt.x,y:tgt.y,w:tgt.w,h:tgt.h})) continue;
                 if(tgt.damage>=DEATH_THRESHOLD&&!tgt.isDummy){instakill(tgt,tgt.cx,tgt.cy);continue;}
                 tgt.damage+=Math.round(this.ch.hDmg*1.2*(tgt.ch.def??1));
-                tgt.hitFlash=15;
+                tgt.hitFlash=10;
                 const km=kbScale(tgt.damage), kb=this.ch.hKB*1.3*km/tgt.ch.weight;
                 tgt.vx=f*kb; tgt.vy=-kb*0.25;
                 tgt.vx=Math.max(-MAX_KB,Math.min(MAX_KB,tgt.vx)); tgt.vy=Math.max(-MAX_KB,Math.min(MAX_KB,tgt.vy));
@@ -1323,7 +1324,7 @@ class Player {
       playSfx({freq:160,freq2:60,type:'sawtooth',decay:0.3,vol:0.22});
     }
     if(!this.isDummy) target.damage+=Math.round(dmg*(target.ch.def??1));
-    target.hitFlash=15;
+    target.hitFlash=10;
     // KING flaming sword: apply burn DoT to victim
     if(kingFireBonus&&!target.isDummy){
       target.burnTimer=this.ch.kingBurnDuration||90; target.burnTick=0;
@@ -1337,6 +1338,24 @@ class Player {
     // Velocity cap to prevent extreme launch speeds
     target.vx=Math.max(-MAX_KB,Math.min(MAX_KB,target.vx));
     target.vy=Math.max(-MAX_KB,Math.min(MAX_KB,target.vy));
+    // DI (directional influence): victim's held stick nudges launch trajectory.
+    // Only meaningful when there's real knockback (heavy or scaled-up hits create hstun).
+    if(!target.isDummy){
+      const di=target.lastInput;
+      if(di){
+        const dix=(di.right?1:0)-(di.left?1:0);
+        const diy=(di.down?1:0)-(di.up?1:0);
+        if(dix||diy){
+          const speed=Math.hypot(target.vx,target.vy);
+          // Scale DI strength with knockback so weak hits aren't trivially escaped
+          const diMag=Math.min(2.4,0.6+speed*0.12);
+          target.vx+=dix*diMag;
+          target.vy+=diy*diMag;
+          target.vx=Math.max(-MAX_KB,Math.min(MAX_KB,target.vx));
+          target.vy=Math.max(-MAX_KB,Math.min(MAX_KB,target.vy));
+        }
+      }
+    }
     // PIERCE down+light: pogo - Pierce hops upward, target gets normal knockback
     if(this.ch.id===5&&!heavy&&dir==='down'&&this.atk.comboN===1){
       this.vy=this.ch.jumpF*0.85; this.onGnd=false; this.onPlat=false;
@@ -1359,6 +1378,10 @@ class Player {
     const lag=heavy?6:4; target.hitlag=lag; this.hitlag=lag;
     const hb=this.hitbox(); if(hb)addHitParticles(hb.x+hb.w/2,hb.y+hb.h/2,this.ch.color,heavy);
     sfxHit(heavy);
+    // Screen shake scaled to actual knockback delivered
+    const shakeMag=Math.min(14,(heavy?2.2:1.1)+kb*0.55);
+    G.shakeX+=(Math.random()-0.5)*2*shakeMag;
+    G.shakeY+=(Math.random()-0.5)*2*shakeMag;
     // ===== GRAB RELEASE =====
     // Case A: this attacker is grabbing target → the grab-release attack landed
     if(this.grabbing===target){
@@ -1416,7 +1439,6 @@ class Player {
 
   draw(){
     if(this.dead)return;
-    const flash=this.hitFlash>0&&Math.floor(this.hitFlash/2)%2===0;
 
     // ---- Grab energy line drawn behind everything (only from grabber side to avoid double-draw) ----
     if(this.grabbing&&!this.grabbing.dead){
@@ -1499,10 +1521,16 @@ class Player {
       ctx.scale(sx,sy);
     }
 
-    if(flash)ctx.globalAlpha=0.22;
     drawCharacter(ctx,this.ch,this.w,this.h,this.atk,this.onGnd||this.onPlat,this.wf,{armsLeft:this.armsLeft,glitchGhost:this.glitchGhost,glitchPhaseTimer:this.glitchPhaseTimer,glitchWeapon:this.glitchWeapon,kingShieldAngle:this.kingShieldAngle,kingFireTimer:this.kingFireTimer,kingFacing:this.facing});
     if(!this.isDummy)drawAttackArc(this.atk,this.ch,this.w,this.h);
-    ctx.globalAlpha=1;
+    if(this.hitFlash>0){
+      const t=Math.min(1,this.hitFlash/10);
+      ctx.save();
+      ctx.globalCompositeOperation='source-atop';
+      ctx.fillStyle=`rgba(255,255,255,${0.55*t})`;
+      ctx.fillRect(-this.w*0.6,-this.h*0.6,this.w*1.2,this.h*1.2);
+      ctx.restore();
+    }
     ctx.restore();
 
 
